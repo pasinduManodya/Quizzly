@@ -3,7 +3,8 @@
     "commands": [
       "npm ci",
       "cd client && npm ci",
-      "cd client && npm run build"
+      "cd client && npm run build",
+      "ls -la client/build || echo 'Build directory check failed'"
     ]
   },
   "start": "npm start"

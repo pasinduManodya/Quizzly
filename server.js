@@ -170,10 +170,94 @@ app.use('/api/pricing', require('./routes/pricing'));
 
 // Serve React app in production only
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'client/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
+  // Try multiple possible build paths
+  const possiblePaths = [
+    path.join(__dirname, 'client/build'),
+    path.join(__dirname, '../client/build'),
+    path.join(__dirname, '../../client/build'),
+    path.resolve(process.cwd(), 'client/build')
+  ];
+  
+  let buildPath = null;
+  let indexPath = null;
+  
+  // Find the build directory
+  for (const possiblePath of possiblePaths) {
+    const possibleIndexPath = path.join(possiblePath, 'index.html');
+    if (fs.existsSync(possiblePath) && fs.existsSync(possibleIndexPath)) {
+      buildPath = possiblePath;
+      indexPath = possibleIndexPath;
+      console.log('✅ Found build directory at:', buildPath);
+      break;
+    }
+  }
+  
+  // Check if build directory exists
+  if (buildPath && indexPath) {
+    app.use(express.static(buildPath));
+    app.get('*', (req, res) => {
+      res.sendFile(indexPath);
+    });
+  } else {
+    // Build directory doesn't exist - log warning and provide helpful error
+    console.error('⚠️  WARNING: Production build not found!');
+    console.error('Tried paths:', possiblePaths);
+    console.error('Current directory (__dirname):', __dirname);
+    console.error('Working directory (process.cwd()):', process.cwd());
+    
+    // List what does exist
+    try {
+      const dirContents = fs.readdirSync(__dirname);
+      console.error('Contents of __dirname:', dirContents);
+      
+      const clientPath = path.join(__dirname, 'client');
+      if (fs.existsSync(clientPath)) {
+        const clientContents = fs.readdirSync(clientPath);
+        console.error('Contents of client directory:', clientContents);
+      }
+      
+      // Check if client/build exists but index.html is missing
+      const checkedBuildPath = path.join(__dirname, 'client/build');
+      if (fs.existsSync(checkedBuildPath)) {
+        const buildContents = fs.readdirSync(checkedBuildPath);
+        console.error('Contents of client/build (index.html may be missing):', buildContents);
+      }
+    } catch (err) {
+      console.error('Error reading directory:', err.message);
+    }
+    
+    // Serve helpful error page
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api')) {
+        return res.status(503).json({
+          success: false,
+          error: {
+            message: 'Frontend build not found. Please ensure the build completed successfully.',
+            type: 'build_error',
+            triedPaths: possiblePaths,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+      res.status(503).send(`
+        <html>
+          <head><title>Build Error</title></head>
+          <body style="font-family: Arial; padding: 40px; text-align: center;">
+            <h1>⚠️ Build Not Found</h1>
+            <p>The frontend build directory is missing.</p>
+            <p><strong>Tried paths:</strong></p>
+            <ul style="text-align: left; display: inline-block;">
+              ${possiblePaths.map(p => `<li>${p}</li>`).join('')}
+            </ul>
+            <p>Please ensure the build process completed successfully.</p>
+            <hr>
+            <p><small>If you're deploying to Render, make sure your build command is:</small></p>
+            <p><code>npm ci && cd client && npm ci && npm run build</code></p>
+          </body>
+        </html>
+      `);
+    });
+  }
 } else {
   // In development, ignore non-API routes (handled by React dev server)
   app.use((req, res, next) => {
