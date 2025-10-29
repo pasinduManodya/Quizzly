@@ -1,0 +1,10 @@
+{
+  "build": {
+    "commands": [
+      "npm ci",
+      "cd client && npm ci",
+      "cd client && npm run build"
+    ]
+  },
+  "start": "npm start"
+}
