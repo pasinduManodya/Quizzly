@@ -10,8 +10,8 @@
     "dev:frontend": "cd client && npm start",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "client": "cd client && npm start",
-    "build": "cd client && npm ci && npm run build",
-    "build:ci": "cd client && npm ci && npm run build",
+    "build": "cd src/client && npm ci && npm run build",
+    "build:ci": "cd src/client && npm ci && npm run build",
     "install:client": "cd client && npm install",
     "install:all": "npm install && cd client && npm install",
     "setup": "npm run install:all && npm run dev"

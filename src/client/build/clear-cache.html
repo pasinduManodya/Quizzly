@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Cache - Quizzly</title>
+</head>
+<body>
+    <h1>Clearing All Caches...</h1>
+    <div id="status">Please wait...</div>
+    
+    <script>
+        (async function() {
+            const status = document.getElementById('status');
+            
+            try {
+                // Unregister all service workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                    status.innerHTML += '<br>✅ Unregistered service worker: ' + registration.scope;
+                }
+                
+                // Clear all caches
+                const cacheNames = await caches.keys();
+                for (let cacheName of cacheNames) {
+                    await caches.delete(cacheName);
+                    status.innerHTML += '<br>✅ Deleted cache: ' + cacheName;
+                }
+                
+                // Clear localStorage
+                localStorage.clear();
+                status.innerHTML += '<br>✅ Cleared localStorage';
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                status.innerHTML += '<br>✅ Cleared sessionStorage';
+                
+                status.innerHTML += '<br><br><strong>✅ ALL CACHES CLEARED!</strong>';
+                status.innerHTML += '<br><br><a href="/">Go to Homepage</a>';
+                
+            } catch (error) {
+                status.innerHTML += '<br>❌ Error: ' + error.message;
+            }
+        })();
+    </script>
+</body>
+</html>
+

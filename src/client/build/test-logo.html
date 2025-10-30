@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logo Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 50px;
+            text-align: center;
+        }
+        .test-logo {
+            border: 2px solid #14b8a6;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 200px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Logo Test Page</h1>
+    <p>If you can see the logo below, it means the file exists and is accessible.</p>
+    
+    <div class="test-logo">
+        <h3>Test 1: Logo from /logo.jpg</h3>
+        <img src="/logo.jpg" alt="Logo Test" onerror="this.style.border='2px solid red'; this.alt='FAILED TO LOAD'; document.getElementById('result1').innerHTML='❌ FAILED';" />
+        <p id="result1">Loading...</p>
+    </div>
+    
+    <div class="test-logo">
+        <h3>Test 2: Logo with cache bust</h3>
+        <img src="/logo.jpg?v=123" alt="Logo Test" onerror="this.style.border='2px solid red'; this.alt='FAILED TO LOAD'; document.getElementById('result2').innerHTML='❌ FAILED';" />
+        <p id="result2">Loading...</p>
+    </div>
+    
+    <script>
+        window.addEventListener('load', () => {
+            const images = document.querySelectorAll('img');
+            images.forEach((img, index) => {
+                img.addEventListener('load', () => {
+                    document.getElementById(`result${index + 1}`).innerHTML = '✅ SUCCESS';
+                    document.getElementById(`result${index + 1}`).style.color = 'green';
+                });
+                img.addEventListener('error', () => {
+                    document.getElementById(`result${index + 1}`).innerHTML = '❌ FAILED - Check console for errors';
+                    document.getElementById(`result${index + 1}`).style.color = 'red';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

@@ -172,9 +172,11 @@ app.use('/api/pricing', require('./routes/pricing'));
 if (process.env.NODE_ENV === 'production') {
   // Try multiple possible build paths
   const possiblePaths = [
+    path.join(__dirname, 'src/client/build'),
     path.join(__dirname, 'client/build'),
     path.join(__dirname, '../client/build'),
     path.join(__dirname, '../../client/build'),
+    path.resolve(process.cwd(), 'src/client/build'),
     path.resolve(process.cwd(), 'client/build')
   ];
   

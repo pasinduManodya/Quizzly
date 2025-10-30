@@ -4529,3 +4529,35 @@
 {"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-02.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T03:49:33.456Z"}
 {"email":"pasindumanodya360@gmail.com","ip":"::1","level":"info","message":"Login attempt for email: pasindumanodya360@gmail.com","service":"quizzly","timestamp":"2025-10-30T03:51:42.053Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"}
 {"email":"pasindumanodya360@gmail.com","level":"info","message":"User logged in successfully: 68f51656d937819b66f2a5d9","service":"quizzly","timestamp":"2025-10-30T03:51:42.993Z","userId":"68f51656d937819b66f2a5d9"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:25:18.441Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:25:18.902Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-10-30T04:25:22.550Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-00.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T04:25:24.527Z"}
+{"email":"pasindumanodya360@gmail.com","ip":"::1","level":"info","message":"Login attempt for email: pasindumanodya360@gmail.com","service":"quizzly","timestamp":"2025-10-30T04:25:40.454Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"}
+{"email":"pasindumanodya360@gmail.com","level":"info","message":"User logged in successfully: 68f51656d937819b66f2a5d9","service":"quizzly","timestamp":"2025-10-30T04:25:41.372Z","userId":"68f51656d937819b66f2a5d9"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:29:44.230Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:29:45.115Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-10-30T04:29:48.767Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-02.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T04:29:51.378Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:32:13.072Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:32:13.341Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-10-30T04:32:17.002Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-00.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T04:32:19.184Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:32:53.186Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:32:53.976Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:32:54.867Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:32:55.127Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:32:59.325Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:32:59.736Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-10-30T04:33:03.412Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-00.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T04:33:05.115Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:34:50.048Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:34:50.748Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-10-30T04:34:54.447Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-01.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T04:34:56.987Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:35:25.085Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:35:25.414Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-10-30T04:35:29.063Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-01.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-10-30T04:35:30.775Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-30T04:35:41.959Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-30T04:35:42.574Z"}

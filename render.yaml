@@ -2,7 +2,7 @@ services:
   - type: web
     name: quizzly
     env: node
-    buildCommand: npm ci && cd client && npm ci && npm run build
+    buildCommand: npm ci && cd src/client && npm ci && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
