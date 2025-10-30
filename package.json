@@ -10,7 +10,8 @@
     "dev:frontend": "cd client && npm start",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "client": "cd client && npm start",
-    "build": "cd client && npm run build",
+    "build": "npm install --prefix client && npm run build --prefix client",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client",
     "install:all": "npm install && cd client && npm install",
     "setup": "npm run install:all && npm run dev"
   },
