@@ -6,8 +6,8 @@ const Logo: React.FC<{ className?: string; size?: number }> = ({ className = '',
   
   return (
     <img 
-      src={logoSrc}
-      alt="Quizzly Logo" 
+      src="/logo.jpg"
+      alt="Logo" 
       className={className}
       style={{ 
         width: size, 
