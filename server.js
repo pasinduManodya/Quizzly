@@ -10,20 +10,19 @@ const QuizResult = require('./models/QuizResult');
 const { errorHandler, notFoundHandler, logger } = require('./middleware/errorHandler');
 const mongoManager = require('./config/mongodb');
 
-// Load environment variables manually
+// Load environment variables using dotenv (with fallback for missing file)
 try {
-  const envContent = fs.readFileSync('.env', 'utf8');
-  const envLines = envContent.split('\n');
-  envLines.forEach(line => {
-    const [key, ...valueParts] = line.split('=');
-    if (key && valueParts.length > 0) {
-      const value = valueParts.join('=').trim();
-      process.env[key.trim()] = value;
-    }
-  });
-  logger.info('Environment variables loaded successfully');
+  // Try to load .env file, but don't fail if it doesn't exist
+  // In production, environment variables are usually set by the hosting platform
+  if (fs.existsSync('.env')) {
+    require('dotenv').config();
+    logger.info('Environment variables loaded from .env file');
+  } else {
+    logger.info('No .env file found - using environment variables from system');
+  }
 } catch (error) {
-  logger.error('Error loading .env file:', error.message);
+  logger.warn('Error loading .env file (non-critical):', error.message);
+  // Don't fail startup - environment variables might be set elsewhere (e.g., hosting platform)
 }
 
 const app = express();
@@ -232,9 +231,14 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
   logger.error('Unhandled Rejection', {
-    reason: reason,
+    reason: reason instanceof Error ? reason.message : reason,
+    stack: reason instanceof Error ? reason.stack : undefined,
     promise: promise
   });
+  
+  // Don't crash the server - log and continue
+  // In production, you might want to restart gracefully or notify monitoring
+  console.error('⚠️  Server will continue running despite unhandled rejection');
 });
 
 // Cleanup guest users every hour

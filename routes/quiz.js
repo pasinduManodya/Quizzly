@@ -5,6 +5,7 @@ const QuizResult = require('../models/QuizResult');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { createAIService } = require('../services/aiService');
+const { asyncHandler, ValidationError, NotFoundError } = require('../middleware/errorHandler');
 
 const router = express.Router();
 
@@ -388,54 +389,44 @@ Correct Answer:\n${correctAnswer}\n\nStudent Answer:\n${userAnswer}`;
 }
 
 // Endpoint to grade an essay answer
-router.post('/grade-essay', auth, async (req, res) => {
-  try {
-    const { correctAnswer, userAnswer } = req.body;
-    if (!correctAnswer || !userAnswer) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-    const grading = await gradeEssayAnswer(correctAnswer, userAnswer);
-    res.json(grading);
-  } catch (error) {
-    console.error('Grade essay API error:', error);
-    res.status(500).json({ message: 'Server error' });
+router.post('/grade-essay', auth, asyncHandler(async (req, res) => {
+  const { correctAnswer, userAnswer } = req.body;
+  if (!correctAnswer || !userAnswer) {
+    throw new ValidationError('Missing required fields: correctAnswer and userAnswer');
   }
-});
+  const grading = await gradeEssayAnswer(correctAnswer, userAnswer);
+  res.json(grading);
+}));
 
 // Test endpoint to debug quiz submission
-router.post('/test-submit', auth, async (req, res) => {
-  try {
-    console.log('\n🧪 === TEST QUIZ SUBMIT ===');
-    console.log('Request body:', req.body);
-    console.log('Request headers:', req.headers);
-    console.log('User:', req.user);
-    
-    const { documentId, answers } = req.body;
-    
-    console.log('documentId:', documentId, '(type:', typeof documentId, ')');
-    console.log('answers:', answers, '(type:', typeof answers, ')');
-    console.log('answers length:', answers ? answers.length : 'undefined');
-    
-    // Simple validation
-    if (!documentId) {
-      return res.status(400).json({ message: 'Document ID is required' });
-    }
-    
-    if (!answers || !Array.isArray(answers)) {
-      return res.status(400).json({ message: 'Answers must be an array' });
-    }
-    
-    res.json({ 
-      message: 'Test successful',
-      documentId,
-      answersCount: answers.length,
-      user: req.user.email
-    });
-  } catch (error) {
-    console.error('Test submit error:', error);
-    res.status(500).json({ message: 'Test error', error: error.message });
+router.post('/test-submit', auth, asyncHandler(async (req, res) => {
+  console.log('\n🧪 === TEST QUIZ SUBMIT ===');
+  console.log('Request body:', req.body);
+  console.log('Request headers:', req.headers);
+  console.log('User:', req.user);
+  
+  const { documentId, answers } = req.body;
+  
+  console.log('documentId:', documentId, '(type:', typeof documentId, ')');
+  console.log('answers:', answers, '(type:', typeof answers, ')');
+  console.log('answers length:', answers ? answers.length : 'undefined');
+  
+  // Simple validation
+  if (!documentId) {
+    throw new ValidationError('Document ID is required');
   }
-});
+  
+  if (!answers || !Array.isArray(answers)) {
+    throw new ValidationError('Answers must be an array');
+  }
+  
+  res.json({ 
+    message: 'Test successful',
+    documentId,
+    answersCount: answers.length,
+    user: req.user.email
+  });
+}));
 
 // Simple test endpoint
 router.get('/test', (req, res) => {
@@ -516,8 +507,7 @@ function evaluateQuiz(questions, userAnswers) {
 }
 
 // Submit quiz answers - PROPER EVALUATOR VERSION
-router.post('/submit', auth, async (req, res) => {
-  try {
+router.post('/submit', auth, asyncHandler(async (req, res) => {
     console.log('\n🚀 === QUIZ SUBMIT WITH PROPER EVALUATOR ===');
     console.log('📝 Request body:', req.body);
     
@@ -526,7 +516,7 @@ router.post('/submit', auth, async (req, res) => {
     // Basic validation
     if (!documentId || !answers || !Array.isArray(answers)) {
       console.log('❌ Validation failed:', { documentId, answers });
-      return res.status(400).json({ message: 'Missing required data' });
+      throw new ValidationError('Missing required data: documentId and answers array');
     }
     
     console.log('✅ Validation passed');
@@ -541,7 +531,7 @@ router.post('/submit', auth, async (req, res) => {
 
     if (!document) {
       console.log('❌ Document not found');
-      return res.status(404).json({ message: 'Document not found' });
+      throw new NotFoundError('Document');
     }
 
     console.log('✅ Document found:', document.title);
@@ -589,18 +579,10 @@ router.post('/submit', auth, async (req, res) => {
       incorrect: evaluation.incorrect,
       answers: evaluation.results // Make sure answers array is included
     });
-  } catch (error) {
-    console.error('Submit quiz error:', error);
-    res.status(500).json({ 
-      message: 'Server error',
-      error: error.message
-    });
-  }
-});
+}));
 
 // Save quiz result for revision
-router.post('/save/:quizResultId', auth, async (req, res) => {
-  try {
+router.post('/save/:quizResultId', auth, asyncHandler(async (req, res) => {
     console.log('🔄 Saving quiz to revision history...');
     
     const quizResult = await QuizResult.findOneAndUpdate(
@@ -616,7 +598,7 @@ router.post('/save/:quizResultId', auth, async (req, res) => {
 
     if (!quizResult) {
       console.log('❌ Quiz result not found');
-      return res.status(404).json({ message: 'Quiz result not found' });
+      throw new NotFoundError('Quiz result');
     }
 
     console.log('✅ Quiz marked as saved for revision');
@@ -650,244 +632,205 @@ router.post('/save/:quizResultId', auth, async (req, res) => {
       saved: true,
       totalSaved: Math.min(savedQuizzes.length, 20)
     });
-  } catch (error) {
-    console.error('Save quiz error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+}));
 
 // Get user's quiz history
-router.get('/history', auth, async (req, res) => {
-  try {
-    console.log('📚 BACKEND: Getting quiz history for user:', req.user._id);
-    
-    const quizResults = await QuizResult.find({ user: req.user._id })
-      .populate('document', 'title')
-      .sort({ completedAt: -1 })
-      .limit(50); // Limit to last 50 quizzes
+router.get('/history', auth, asyncHandler(async (req, res) => {
+  console.log('📚 BACKEND: Getting quiz history for user:', req.user._id);
+  
+  const quizResults = await QuizResult.find({ user: req.user._id })
+    .populate('document', 'title')
+    .sort({ completedAt: -1 })
+    .limit(50); // Limit to last 50 quizzes
 
-    console.log('📚 BACKEND: Found', quizResults.length, 'quiz results');
-    console.log('📚 BACKEND: Quiz IDs:', quizResults.map(q => q._id));
+  console.log('📚 BACKEND: Found', quizResults.length, 'quiz results');
+  console.log('📚 BACKEND: Quiz IDs:', quizResults.map(q => q._id));
 
-    res.json(quizResults);
-  } catch (error) {
-    console.error('Get quiz history error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+  res.json(quizResults);
+}));
 
 // Get specific quiz result
-router.get('/result/:quizResultId', auth, async (req, res) => {
-  try {
-    const quizResult = await QuizResult.findOne({
-      _id: req.params.quizResultId,
-      user: req.user._id
-    }).populate('document');
+router.get('/result/:quizResultId', auth, asyncHandler(async (req, res) => {
+  const quizResult = await QuizResult.findOne({
+    _id: req.params.quizResultId,
+    user: req.user._id
+  }).populate('document');
 
-    if (!quizResult) {
-      return res.status(404).json({ message: 'Quiz result not found' });
-    }
-
-    res.json(quizResult);
-  } catch (error) {
-    console.error('Get quiz result error:', error);
-    res.status(500).json({ message: 'Server error' });
+  if (!quizResult) {
+    throw new NotFoundError('Quiz result');
   }
-});
+
+  res.json(quizResult);
+}));
 
 // Get enhanced explanation for a specific question
-router.post('/explanation', auth, async (req, res) => {
-  try {
-    const { question, correctAnswer, userAnswer, originalExplanation } = req.body;
-    
-    if (!question || !correctAnswer || !originalExplanation) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    const enhancedExplanation = await enhanceExplanation(
-      question, 
-      correctAnswer, 
-      userAnswer || '', 
-      originalExplanation
-    );
-
-    res.json({ 
-      enhancedExplanation,
-      originalExplanation 
-    });
-  } catch (error) {
-    console.error('Get enhanced explanation error:', error);
-    res.status(500).json({ message: 'Server error' });
+router.post('/explanation', auth, asyncHandler(async (req, res) => {
+  const { question, correctAnswer, userAnswer, originalExplanation } = req.body;
+  
+  if (!question || !correctAnswer || !originalExplanation) {
+    throw new ValidationError('Missing required fields: question, correctAnswer, and originalExplanation');
   }
-});
+
+  const enhancedExplanation = await enhanceExplanation(
+    question, 
+    correctAnswer, 
+    userAnswer || '', 
+    originalExplanation
+  );
+
+  res.json({ 
+    enhancedExplanation,
+    originalExplanation 
+  });
+}));
 
 // Manual cleanup endpoint to remove old revisions
-router.post('/cleanup-revisions', auth, async (req, res) => {
-  try {
-    console.log('🧹 Starting manual cleanup of revision history...');
+router.post('/cleanup-revisions', auth, asyncHandler(async (req, res) => {
+  console.log('🧹 Starting manual cleanup of revision history...');
+  
+  const savedQuizzes = await QuizResult.find({ 
+    user: req.user._id,
+    savedForRevision: true 
+  }).sort({ completedAt: -1 });
+
+  console.log(`📊 Found ${savedQuizzes.length} saved quizzes`);
+
+  if (savedQuizzes.length > 20) {
+    const quizzesToDelete = savedQuizzes.slice(20); // Get quizzes beyond the 20 most recent
+    const deleteIds = quizzesToDelete.map(quiz => quiz._id);
     
-    const savedQuizzes = await QuizResult.find({ 
-      user: req.user._id,
-      savedForRevision: true 
-    }).sort({ completedAt: -1 });
-
-    console.log(`📊 Found ${savedQuizzes.length} saved quizzes`);
-
-    if (savedQuizzes.length > 20) {
-      const quizzesToDelete = savedQuizzes.slice(20); // Get quizzes beyond the 20 most recent
-      const deleteIds = quizzesToDelete.map(quiz => quiz._id);
-      
-      console.log(`🗑️ Removing ${quizzesToDelete.length} oldest quizzes from revision history`);
-      
-      const deleteResult = await QuizResult.updateMany(
-        { _id: { $in: deleteIds } },
-        { savedForRevision: false }
-      );
-      
-      console.log(`✅ Removed ${deleteResult.modifiedCount} old quizzes from revision history`);
-      
-      res.json({ 
-        message: `Cleaned up ${deleteResult.modifiedCount} old revisions`,
-        removed: deleteResult.modifiedCount,
-        remaining: 20
-      });
-    } else {
-      console.log('✅ No cleanup needed - under 20 revisions');
-      res.json({ 
-        message: 'No cleanup needed',
-        remaining: savedQuizzes.length
-      });
-    }
-  } catch (error) {
-    console.error('Cleanup error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.log(`🗑️ Removing ${quizzesToDelete.length} oldest quizzes from revision history`);
+    
+    const deleteResult = await QuizResult.updateMany(
+      { _id: { $in: deleteIds } },
+      { savedForRevision: false }
+    );
+    
+    console.log(`✅ Removed ${deleteResult.modifiedCount} old quizzes from revision history`);
+    
+    res.json({ 
+      message: `Cleaned up ${deleteResult.modifiedCount} old revisions`,
+      removed: deleteResult.modifiedCount,
+      remaining: 20
+    });
+  } else {
+    console.log('✅ No cleanup needed - under 20 revisions');
+    res.json({ 
+      message: 'No cleanup needed',
+      remaining: savedQuizzes.length
+    });
   }
-});
+}));
 
 // Delete individual revision
-router.delete('/delete-revision/:quizResultId', auth, async (req, res) => {
-  try {
-    console.log('🗑️ Deleting revision:', req.params.quizResultId);
-    
-    const result = await QuizResult.findOneAndUpdate(
-      {
-        _id: req.params.quizResultId,
-        user: req.user._id,
-        savedForRevision: true
-      },
-      {
-        savedForRevision: false
-      }
-    );
-
-    if (!result) {
-      console.log('❌ Revision not found or already deleted');
-      return res.status(404).json({ message: 'Revision not found' });
+router.delete('/delete-revision/:quizResultId', auth, asyncHandler(async (req, res) => {
+  console.log('🗑️ Deleting revision:', req.params.quizResultId);
+  
+  const result = await QuizResult.findOneAndUpdate(
+    {
+      _id: req.params.quizResultId,
+      user: req.user._id,
+      savedForRevision: true
+    },
+    {
+      savedForRevision: false
     }
+  );
 
-    console.log('✅ Revision deleted successfully');
-    res.json({ message: 'Revision deleted successfully' });
-  } catch (error) {
-    console.error('Delete revision error:', error);
-    res.status(500).json({ message: 'Server error' });
+  if (!result) {
+    console.log('❌ Revision not found or already deleted');
+    throw new NotFoundError('Revision');
   }
-});
+
+  console.log('✅ Revision deleted successfully');
+  res.json({ message: 'Revision deleted successfully' });
+}));
 
 // Delete any quiz result (not just saved revisions)
-router.delete('/delete/:quizResultId', auth, async (req, res) => {
-  try {
-    console.log('🗑️ BACKEND: Deleting quiz result:', req.params.quizResultId);
-    console.log('🗑️ BACKEND: User ID:', req.user._id);
-    
-    // First, let's check if the quiz exists
-    const existingQuiz = await QuizResult.findOne({
-      _id: req.params.quizResultId,
-      user: req.user._id
+router.delete('/delete/:quizResultId', auth, asyncHandler(async (req, res) => {
+  console.log('🗑️ BACKEND: Deleting quiz result:', req.params.quizResultId);
+  console.log('🗑️ BACKEND: User ID:', req.user._id);
+  
+  // First, let's check if the quiz exists
+  const existingQuiz = await QuizResult.findOne({
+    _id: req.params.quizResultId,
+    user: req.user._id
+  });
+  
+  console.log('🔍 BACKEND: Existing quiz found:', existingQuiz ? 'YES' : 'NO');
+  if (existingQuiz) {
+    console.log('🔍 BACKEND: Quiz details:', {
+      _id: existingQuiz._id,
+      document: existingQuiz.document,
+      score: existingQuiz.score,
+      totalQuestions: existingQuiz.totalQuestions
     });
-    
-    console.log('🔍 BACKEND: Existing quiz found:', existingQuiz ? 'YES' : 'NO');
-    if (existingQuiz) {
-      console.log('🔍 BACKEND: Quiz details:', {
-        _id: existingQuiz._id,
-        document: existingQuiz.document,
-        score: existingQuiz.score,
-        totalQuestions: existingQuiz.totalQuestions
-      });
-    }
-    
-    const result = await QuizResult.findOneAndDelete({
-      _id: req.params.quizResultId,
-      user: req.user._id
-    });
-
-    console.log('🗑️ BACKEND: Delete result:', result ? 'SUCCESS' : 'NOT FOUND');
-    if (result) {
-      console.log('🗑️ BACKEND: Deleted quiz ID:', result._id);
-    }
-
-    if (!result) {
-      console.log('❌ BACKEND: Quiz result not found');
-      return res.status(404).json({ message: 'Quiz result not found' });
-    }
-
-    console.log('✅ BACKEND: Quiz result deleted successfully');
-    
-    // Let's verify the deletion by checking if the quiz still exists
-    const verifyDeletion = await QuizResult.findOne({
-      _id: req.params.quizResultId,
-      user: req.user._id
-    });
-    
-    console.log('🔍 BACKEND: Verification - Quiz still exists after deletion:', verifyDeletion ? 'YES' : 'NO');
-    
-    res.json({ message: 'Quiz result deleted successfully' });
-  } catch (error) {
-    console.error('❌ BACKEND: Delete quiz result error:', error);
-    res.status(500).json({ message: 'Server error' });
   }
-});
+  
+  const result = await QuizResult.findOneAndDelete({
+    _id: req.params.quizResultId,
+    user: req.user._id
+  });
+
+  console.log('🗑️ BACKEND: Delete result:', result ? 'SUCCESS' : 'NOT FOUND');
+  if (result) {
+    console.log('🗑️ BACKEND: Deleted quiz ID:', result._id);
+  }
+
+  if (!result) {
+    console.log('❌ BACKEND: Quiz result not found');
+    throw new NotFoundError('Quiz result');
+  }
+
+  console.log('✅ BACKEND: Quiz result deleted successfully');
+  
+  // Let's verify the deletion by checking if the quiz still exists
+  const verifyDeletion = await QuizResult.findOne({
+    _id: req.params.quizResultId,
+    user: req.user._id
+  });
+  
+  console.log('🔍 BACKEND: Verification - Quiz still exists after deletion:', verifyDeletion ? 'YES' : 'NO');
+  
+  res.json({ message: 'Quiz result deleted successfully' });
+}));
 
 // Get saved quizzes for revision
-router.get('/revision', auth, async (req, res) => {
-  try {
-    console.log('📚 Getting revision data...');
-    
-    const quizResults = await QuizResult.find({ 
-      user: req.user._id,
-      savedForRevision: true 
-    })
-      .populate('document', 'title')
-      .sort({ completedAt: -1 });
+router.get('/revision', auth, asyncHandler(async (req, res) => {
+  console.log('📚 Getting revision data...');
+  
+  const quizResults = await QuizResult.find({ 
+    user: req.user._id,
+    savedForRevision: true 
+  })
+    .populate('document', 'title')
+    .sort({ completedAt: -1 });
 
-    console.log(`Found ${quizResults.length} saved quizzes for revision`);
+  console.log(`Found ${quizResults.length} saved quizzes for revision`);
 
-    // Collect all questions from saved quizzes
-    const revisionData = [];
-    quizResults.forEach(quizResult => {
-      quizResult.answers.forEach(answer => {
-        revisionData.push({
-          quizResultId: quizResult._id,
-          documentTitle: quizResult.document.title,
-          question: answer.question,
-          userAnswer: answer.userAnswer,
-          correctAnswer: answer.correctAnswer,
-          explanation: answer.explanation,
-          isCorrect: answer.isCorrect,
-          questionScore: answer.questionScore,
-          maxQuestionScore: answer.maxQuestionScore,
-          completedAt: quizResult.completedAt,
-          totalScore: quizResult.totalScore,
-          maxPossibleScore: quizResult.maxPossibleScore
-        });
+  // Collect all questions from saved quizzes
+  const revisionData = [];
+  quizResults.forEach(quizResult => {
+    quizResult.answers.forEach(answer => {
+      revisionData.push({
+        quizResultId: quizResult._id,
+        documentTitle: quizResult.document.title,
+        question: answer.question,
+        userAnswer: answer.userAnswer,
+        correctAnswer: answer.correctAnswer,
+        explanation: answer.explanation,
+        isCorrect: answer.isCorrect,
+        questionScore: answer.questionScore,
+        maxQuestionScore: answer.maxQuestionScore,
+        completedAt: quizResult.completedAt,
+        totalScore: quizResult.totalScore,
+        maxPossibleScore: quizResult.maxPossibleScore
       });
     });
+  });
 
-    console.log(`Returning ${revisionData.length} questions for revision`);
-    res.json(revisionData);
-  } catch (error) {
-    console.error('Get revision data error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+  console.log(`Returning ${revisionData.length} questions for revision`);
+  res.json(revisionData);
+}));
 
 module.exports = router;

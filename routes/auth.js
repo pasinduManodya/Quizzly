@@ -151,7 +151,28 @@ router.post('/login', [
   }
 
   // Check password
-  const isMatch = await user.comparePassword(password);
+  // Guard against users without a stored password (e.g., legacy/guest)
+  if (!user.password) {
+    logger.warn(`Login failed - no password set for: ${email}`, {
+      email,
+      userId: user._id,
+      ip: req.ip
+    });
+    throw new AuthenticationError('Invalid email or password');
+  }
+
+  let isMatch = false;
+  try {
+    isMatch = await user.comparePassword(password);
+  } catch (compareError) {
+    console.error('❌ Password comparison error during login:', compareError);
+    logger.error('Password comparison error', {
+      email,
+      userId: user._id,
+      error: compareError.message
+    });
+    throw new AuthenticationError('Invalid email or password');
+  }
   if (!isMatch) {
     logger.warn(`Login failed - invalid password for: ${email}`, {
       email,

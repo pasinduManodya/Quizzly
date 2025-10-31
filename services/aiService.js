@@ -28,34 +28,44 @@ class AIService {
     return await this.callAI(prompt);
   }
 
-  async callAI(prompt) {
+  async callAI(prompt, timeout = 60000) {
     try {
       console.log(`🤖 Calling AI service: ${this.config.provider} - ${this.config.model}`);
       console.log(`📝 Prompt length: ${prompt.length} characters`);
       
+      // Add timeout handling
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('AI service request timeout')), timeout);
+      });
+      
       let result;
       let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       
-      switch (this.config.provider) {
-        case 'gemini':
-          result = await this.callGemini(prompt);
-          tokenUsage = this.estimateGeminiTokens(prompt, result);
-          break;
-        case 'openai':
-          result = await this.callOpenAI(prompt);
-          tokenUsage = this.estimateOpenAITokens(prompt, result);
-          break;
-        case 'claude':
-          result = await this.callClaude(prompt);
-          tokenUsage = this.estimateClaudeTokens(prompt, result);
-          break;
-        case 'custom':
-          result = await this.callCustom(prompt);
-          tokenUsage = this.estimateCustomTokens(prompt, result);
-          break;
-        default:
-          throw new Error(`Unsupported AI provider: ${this.config.provider}`);
-      }
+      // Race between actual call and timeout
+      const aiCallPromise = (async () => {
+        switch (this.config.provider) {
+          case 'gemini':
+            result = await this.callGemini(prompt);
+            tokenUsage = this.estimateGeminiTokens(prompt, result);
+            break;
+          case 'openai':
+            result = await this.callOpenAI(prompt);
+            tokenUsage = this.estimateOpenAITokens(prompt, result);
+            break;
+          case 'claude':
+            result = await this.callClaude(prompt);
+            tokenUsage = this.estimateClaudeTokens(prompt, result);
+            break;
+          case 'custom':
+            result = await this.callCustom(prompt);
+            tokenUsage = this.estimateCustomTokens(prompt, result);
+            break;
+          default:
+            throw new Error(`Unsupported AI provider: ${this.config.provider}`);
+        }
+      })();
+      
+      await Promise.race([aiCallPromise, timeoutPromise]);
       
       console.log(`📊 Token usage: ${tokenUsage.totalTokens} tokens (${tokenUsage.promptTokens} prompt + ${tokenUsage.completionTokens} completion)`);
       
@@ -65,7 +75,23 @@ class AIService {
       };
     } catch (error) {
       console.error(`❌ AI service call failed for ${this.config.provider}:`, error.message);
-      console.error(`❌ Error details:`, error);
+      
+      // Enhance error messages for better debugging
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        throw new Error(`AI service connection failed: ${error.message}. Please check your network connection and API endpoint.`);
+      }
+      
+      if (error.response) {
+        const status = error.response.status;
+        const statusText = error.response.statusText;
+        throw new Error(`AI service returned error ${status} ${statusText}: ${error.response.data?.error?.message || error.message}`);
+      }
+      
+      if (error.message.includes('timeout')) {
+        throw new Error(`AI service request timed out after ${timeout}ms. The service may be slow or unavailable.`);
+      }
+      
+      // Re-throw original error if no special handling
       throw error;
     }
   }
