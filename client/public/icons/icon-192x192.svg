@@ -1,0 +1,28 @@
+
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#14b8a6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="192" height="192" rx="38.400000000000006" ry="38.400000000000006" fill="url(#gradient)"/>
+  
+  <!-- Document icon -->
+  <rect x="38.400000000000006" y="28.799999999999997" width="96" height="134.39999999999998" fill="white" rx="2"/>
+  
+  <!-- Document fold -->
+  <path d="M134.39999999999998 28.799999999999997 L134.39999999999998 57.599999999999994 L163.2 57.599999999999994 Z" fill="rgba(255,255,255,0.8)"/>
+  
+  <!-- AI sparkle -->
+  <g transform="translate(144, 48)">
+    <path d="M0 -15.36 L3.84 -7.68 L15.36 0 L3.84 7.68 L0 15.36 L-3.84 7.68 L-15.36 0 L-3.84 -7.68 Z" fill="white"/>
+  </g>
+  
+  <!-- Text lines on document -->
+  <rect x="48" y="57.599999999999994" width="76.80000000000001" height="3.84" fill="rgba(20,184,166,0.3)" rx="1"/>
+  <rect x="48" y="67.19999999999999" width="67.19999999999999" height="3.84" fill="rgba(20,184,166,0.3)" rx="1"/>
+  <rect x="48" y="76.80000000000001" width="57.599999999999994" height="3.84" fill="rgba(20,184,166,0.3)" rx="1"/>
+</svg>
