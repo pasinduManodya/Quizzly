@@ -151,6 +151,7 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
+
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   if (this.isGuest) return false; // Guests don't have passwords

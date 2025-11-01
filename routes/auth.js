@@ -55,6 +55,9 @@ router.post('/register', [
     isGuest: false // Explicitly set as non-guest
   });
   await user.save();
+  
+  // Load token limits from database (not hardcoded defaults)
+  await user.loadTokenLimits();
 
   // Generate JWT token
   const jwtSecret = process.env.JWT_SECRET || 'fallback-jwt-secret-key-for-development';
@@ -169,6 +172,14 @@ router.post('/login', [
     // Don't fail login for this, just log the error
   }
 
+  // Load token limits from database (to ensure users get updated limits)
+  try {
+    await user.loadTokenLimits();
+  } catch (limitError) {
+    console.error('Error loading token limits during login:', limitError);
+    // Don't fail login for this, just log the error
+  }
+
   // Generate JWT token
   const jwtSecret = process.env.JWT_SECRET || 'fallback-jwt-secret-key-for-development';
   const token = jwt.sign(
@@ -235,6 +246,9 @@ router.post('/guest', asyncHandler(async (req, res) => {
   });
   
   await guestUser.save();
+  
+  // Load token limits from database (not hardcoded defaults)
+  await guestUser.loadTokenLimits();
 
   // Generate JWT token (shorter expiry for guests)
   const jwtSecret = process.env.JWT_SECRET || 'fallback-jwt-secret-key-for-development';
@@ -267,6 +281,9 @@ router.post('/guest', asyncHandler(async (req, res) => {
 
 // Get current user
 router.get('/me', auth, asyncHandler(async (req, res) => {
+  // Ensure token limits are loaded from database (in case they were created before limits were set)
+  await req.user.loadTokenLimits();
+  
   res.json({
     success: true,
     data: {

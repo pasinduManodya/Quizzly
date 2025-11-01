@@ -73,10 +73,13 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
         {/* Progress bar */}
         <div
-          className={`h-full ${styles.bg} rounded-full transition-all duration-75 ease-out relative overflow-hidden ${
+          className={`h-full ${styles.bg} rounded-full transition-all duration-300 ease-out relative overflow-hidden ${
             animated ? 'shadow-lg' : ''
           }`}
-          style={{ width: `${Math.min(currentProgress, 100)}%` }}
+          style={{ 
+            width: `${Math.min(currentProgress, 100)}%`,
+            transition: 'width 0.3s ease-out'
+          }}
         >
           {/* Animated shimmer effect */}
           {animated && (

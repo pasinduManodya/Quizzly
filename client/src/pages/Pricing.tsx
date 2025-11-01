@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../components/Logo';
+import { pricingAPI } from '../services/api';
 
 interface PricingPlan {
   id: string;
@@ -16,90 +17,82 @@ interface PricingPlan {
 }
 
 const Pricing: React.FC = () => {
-  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([
-    {
-      id: 'free',
-      name: 'Free',
-      price: 0,
-      currency: '$',
-      period: 'forever',
-      dailyLimit: 3,
-      monthlyLimit: 10,
-      features: [
-        '3 PDF uploads per day',
-        '10 PDF uploads per month',
-        'Basic MCQ quizzes',
-        'AI-powered feedback',
-        'Save favorites',
-        'Guest access'
-      ],
-      color: 'teal'
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      price: 9.99,
-      currency: '$',
-      period: 'month',
-      dailyLimit: 20,
-      monthlyLimit: 100,
-      features: [
-        '20 PDF uploads per day',
-        '100 PDF uploads per month',
-        'MCQ + Essay quizzes',
-        'Advanced AI feedback',
-        'Unlimited favorites',
-        'Priority support',
-        'Export quiz results'
-      ],
-      popular: true,
-      color: 'violet'
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      price: 19.99,
-      currency: '$',
-      period: 'month',
-      dailyLimit: 50,
-      monthlyLimit: 500,
-      features: [
-        '50 PDF uploads per day',
-        '500 PDF uploads per month',
-        'All quiz types (MCQ, Essay, Mixed)',
-        'Premium AI feedback',
-        'Unlimited favorites',
-        '24/7 priority support',
-        'Export & analytics',
-        'Custom quiz templates',
-        'API access'
-      ],
-      color: 'yellow'
-    }
-  ]);
-
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch pricing plans from API
     const fetchPricingPlans = async () => {
       try {
-        const response = await fetch('/api/pricing/plans');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.plans) {
-            setPricingPlans(data.plans);
-          }
+        setLoading(true);
+        console.log('🔍 Fetching pricing plans from API...');
+        
+        // Try using the API service first
+        let response;
+        try {
+          response = await pricingAPI.getPlans();
+        } catch (apiError: any) {
+          console.warn('⚠️ API service failed, trying direct fetch:', apiError);
+          // Fallback to direct fetch
+          const apiUrl = process.env.REACT_APP_API_URL || '';
+          const url = apiUrl ? `${apiUrl}/api/pricing/plans` : '/api/pricing/plans';
+          const fetchResponse = await fetch(`${url}?_t=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          const data = await fetchResponse.json();
+          response = { data };
         }
-      } catch (error) {
-        console.error('Failed to fetch pricing plans:', error);
-        // Keep default plans if API fails
+        
+        console.log('📥 Full API Response:', response);
+        console.log('📋 Response data:', response.data);
+        
+        if (response && response.data) {
+          if (response.data.success !== false) {
+            const plans = Array.isArray(response.data.plans) ? response.data.plans : [];
+            console.log('📦 Plans array:', plans);
+            console.log('📊 Number of plans:', plans.length);
+            
+            if (plans.length > 0) {
+              console.log('✅ Setting pricing plans:', plans.map((p: any) => `${p.name} (${p.id})`));
+              setPricingPlans(plans);
+            } else {
+              console.warn('⚠️ No pricing plans in response. Response data:', response.data);
+              setPricingPlans([]);
+            }
+          } else {
+            console.error('❌ API returned success: false. Response:', response.data);
+            setPricingPlans([]);
+          }
+        } else {
+          console.error('❌ Invalid response structure:', response);
+          setPricingPlans([]);
+        }
+      } catch (error: any) {
+        console.error('❌ Failed to fetch pricing plans:', error);
+        console.error('Error details:', error.response?.data || error.message);
+        console.error('Full error:', error);
+        setPricingPlans([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchPricingPlans();
+
+    // Refresh when page becomes visible again (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchPricingPlans();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const getColorClasses = (color: string) => {
@@ -233,8 +226,14 @@ const Pricing: React.FC = () => {
       {/* Pricing Cards */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-8">
-            {pricingPlans.map((plan, index) => {
+          {pricingPlans.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600 text-lg mb-4">Loading pricing plans...</p>
+              <p className="text-gray-500 text-sm">If plans don't appear, check the browser console for errors.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8">
+              {pricingPlans.map((plan, index) => {
               const colors = getColorClasses(plan.color);
               const animationClass = index === 0 ? 'animate-fade-in-left' : 
                                    index === 1 ? 'animate-fade-in-up' : 
@@ -288,8 +287,9 @@ const Pricing: React.FC = () => {
                   </div>
                 </div>
               );
-            })}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       </section>
 
