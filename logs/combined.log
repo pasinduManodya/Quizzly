@@ -5059,3 +5059,9 @@
 {"email":"pasindumanodya360@gmail.com","level":"info","message":"User logged in successfully: 68f51656d937819b66f2a5d9","service":"quizzly","timestamp":"2025-10-31T17:07:25.003Z","userId":"68f51656d937819b66f2a5d9"}
 {"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-10-31T17:16:49.723Z"}
 {"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-10-31T17:16:50.359Z"}
+{"level":"info","message":"Environment variables loaded successfully","service":"quizzly","timestamp":"2025-11-01T03:07:27.403Z"}
+{"environment":"development","level":"info","message":"Server started successfully","port":5000,"service":"quizzly","timestamp":"2025-11-01T03:07:27.643Z"}
+{"attempt":1,"level":"info","maxRetries":5,"message":"Attempting MongoDB connection...","service":"quizzly","timestamp":"2025-11-01T03:07:34.462Z"}
+{"connectionState":1,"database":"test","host":"ac-be6qcjz-shard-00-01.yg0v7az.mongodb.net","level":"info","message":"MongoDB connected successfully","port":27017,"service":"quizzly","timestamp":"2025-11-01T03:07:36.384Z"}
+{"email":"pasindumanodya360@gmail.com","ip":"::1","level":"info","message":"Login attempt for email: pasindumanodya360@gmail.com","service":"quizzly","timestamp":"2025-11-01T03:08:30.157Z","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"}
+{"email":"pasindumanodya360@gmail.com","level":"info","message":"User logged in successfully: 68f51656d937819b66f2a5d9","service":"quizzly","timestamp":"2025-11-01T03:08:31.008Z","userId":"68f51656d937819b66f2a5d9"}
