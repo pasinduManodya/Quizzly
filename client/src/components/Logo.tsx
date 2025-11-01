@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
+import logoImage from '../assets/logo.jpg';
 
 const Logo: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 40 }) => {
-  // Add cache-busting query parameter
-  const logoSrc = `/logo.jpg?v=${Date.now()}`;
+  const [imgError, setImgError] = useState(false);
+  
+  // Try public folder first, then fallback to imported asset
+  const logoSrc = imgError ? logoImage : `/logo.jpg?v=${Date.now()}`;
   
   return (
     <img 
@@ -13,6 +16,11 @@ const Logo: React.FC<{ className?: string; size?: number }> = ({ className = '',
         width: size, 
         height: size, 
         objectFit: 'cover'
+      }}
+      onError={() => {
+        if (!imgError) {
+          setImgError(true);
+        }
       }}
     />
   );
