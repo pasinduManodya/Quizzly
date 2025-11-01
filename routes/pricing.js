@@ -76,7 +76,21 @@ router.put('/pricing-plans/:id', adminAuth, asyncHandler(async (req, res) => {
   plan.features = features || plan.features;
   plan.popular = popular !== undefined ? popular : plan.popular;
   plan.color = color || plan.color;
-  plan.active = active !== undefined ? active : plan.active;
+  // Ensure active defaults to true if not explicitly provided in the update
+  // This ensures updated plans are visible unless explicitly deactivated
+  if (active !== undefined) {
+    plan.active = active;
+  } else {
+    // If active not provided, ensure it's true (unless it was explicitly false before)
+    // This makes sure plans are visible by default when updated
+    if (plan.active === false) {
+      // Keep it false only if it was explicitly set to false
+      plan.active = false;
+    } else {
+      // Default to true for all other cases
+      plan.active = true;
+    }
+  }
   
   await plan.save();
   
@@ -130,17 +144,67 @@ router.delete('/pricing-plans/:id', adminAuth, asyncHandler(async (req, res) => 
 
 // GET /api/pricing/plans - Public endpoint to get active pricing plans
 router.get('/plans', asyncHandler(async (req, res) => {
-  const plans = await PricingPlan.getActivePlans();
-  
-  res.json({
-    success: true,
-    plans: plans
-  });
+  try {
+    // Get all plans that are not explicitly set to false
+    // This includes plans with active: true, undefined, null, or missing
+    let plans = await PricingPlan.find({ 
+      $or: [
+        { active: { $ne: false } }, // Include anything that's not explicitly false
+        { active: { $exists: false } } // Include documents where active field doesn't exist
+      ]
+    }).sort({ price: 1 });
+    
+    // If no plans exist, initialize default plans
+    if (!plans || plans.length === 0) {
+      console.log('No pricing plans found. Initializing default plans...');
+      await PricingPlan.initializeDefaultPlans();
+      plans = await PricingPlan.find({ 
+        $or: [
+          { active: { $ne: false } },
+          { active: { $exists: false } }
+        ]
+      }).sort({ price: 1 });
+    }
+    
+    // Ensure plans is an array
+    const plansArray = Array.isArray(plans) ? plans : [];
+    
+    console.log(`Returning ${plansArray.length} pricing plans`);
+    if (plansArray.length > 0) {
+      console.log('Plan IDs:', plansArray.map(p => `${p.id} (active: ${p.active})`).join(', '));
+    }
+    
+    // Set no-cache headers to ensure fresh data
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    res.json({
+      success: true,
+      plans: plansArray
+    });
+  } catch (error) {
+    console.error('Error fetching pricing plans:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pricing plans',
+      plans: []
+    });
+  }
 }));
 
 // GET /api/pricing/plans/:id - Public endpoint to get specific active pricing plan
 router.get('/plans/:id', asyncHandler(async (req, res) => {
   const plan = await PricingPlan.getPlanById(req.params.id);
+  
+  // Set no-cache headers to ensure fresh data
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
   
   if (!plan) {
     return res.status(404).json({

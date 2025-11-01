@@ -88,3 +88,24 @@ export const authAPI = {
   
   getMe: () => axios.get('/api/auth/me')
 };
+
+// Pricing API
+export const pricingAPI = {
+  getPlans: () => axios.get('/api/pricing/plans', {
+    params: { _t: Date.now() }, // Cache-busting parameter
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }),
+  
+  getPlan: (id: string) => axios.get(`/api/pricing/plans/${id}`, {
+    params: { _t: Date.now() }, // Cache-busting parameter
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  })
+};

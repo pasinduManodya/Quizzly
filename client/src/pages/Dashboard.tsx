@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, favoritesAPI } from '../services/api';
@@ -20,14 +20,21 @@ const Dashboard: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadFileName, setUploadFileName] = useState('');
   const [error, setError] = useState('');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const uploadXHRRef = useRef<XMLHttpRequest | null>(null);
+  const uploadProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadCompleteIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const uploadCancelledRef = useRef<boolean>(false);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState('');
   const [summaryTitle, setSummaryTitle] = useState('');
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   // Debug summaryText changes
   useEffect(() => {
     console.log('🔄 Dashboard summaryText changed:', typeof summaryText === 'string' ? summaryText.substring(0, 100) + '...' : 'Non-string summary');
@@ -46,6 +53,22 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchDocuments();
     fetchFavorites();
+    
+    // Cleanup function to cancel any ongoing uploads when component unmounts
+    return () => {
+      if (uploadXHRRef.current) {
+        uploadXHRRef.current.abort();
+        uploadXHRRef.current = null;
+      }
+      if (uploadProgressIntervalRef.current) {
+        clearInterval(uploadProgressIntervalRef.current);
+        uploadProgressIntervalRef.current = null;
+      }
+      if (uploadCompleteIntervalRef.current) {
+        clearInterval(uploadCompleteIntervalRef.current);
+        uploadCompleteIntervalRef.current = null;
+      }
+    };
   }, []);
 
   const fetchDocuments = async () => {
@@ -82,25 +105,226 @@ const Dashboard: React.FC = () => {
     }
 
     setUploading(true);
+    setUploadProgress(0);
+    setUploadFileName(file.name);
     setError('');
+    uploadCancelledRef.current = false; // Reset cancellation flag
+
+    // Clear any existing intervals
+    if (uploadProgressIntervalRef.current) {
+      clearInterval(uploadProgressIntervalRef.current);
+      uploadProgressIntervalRef.current = null;
+    }
+    if (uploadCompleteIntervalRef.current) {
+      clearInterval(uploadCompleteIntervalRef.current);
+      uploadCompleteIntervalRef.current = null;
+    }
+
+    // Use refs to track progress to avoid closure issues
+    const progressState = { smoothProgress: 0 };
+
+    // Smooth progress animation that starts immediately
+    uploadProgressIntervalRef.current = setInterval(() => {
+      progressState.smoothProgress += 0.5; // Slow increment of 0.5% per interval
+      if (progressState.smoothProgress < 90) { // Gradually increase to 90%
+        setUploadProgress(Math.min(progressState.smoothProgress, 90));
+      } else {
+        if (uploadProgressIntervalRef.current) {
+          clearInterval(uploadProgressIntervalRef.current);
+          uploadProgressIntervalRef.current = null;
+        }
+      }
+    }, 100) as NodeJS.Timeout; // Update every 100ms for smooth animation
 
     try {
       const formData = new FormData();
       formData.append('pdf', file);
 
-      await documentsAPI.upload(formData);
-      await fetchDocuments();
+      // Use XMLHttpRequest for progress tracking
+      const xhr = new XMLHttpRequest();
+      uploadXHRRef.current = xhr; // Store XHR reference for cancellation
+      const token = localStorage.getItem('token');
+      let actualUploadProgress = 0;
+      
+      return new Promise<void>((resolve, reject) => {
+        // Track actual upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            actualUploadProgress = (e.loaded / e.total) * 80; // Map to 0-80% for upload
+            // Smoothly update progress, using actual progress but keep it gradual
+            if (actualUploadProgress > progressState.smoothProgress) {
+              progressState.smoothProgress = actualUploadProgress;
+              setUploadProgress(Math.min(progressState.smoothProgress, 85));
+            }
+          }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', async () => {
+          if (uploadProgressIntervalRef.current) {
+            clearInterval(uploadProgressIntervalRef.current);
+            uploadProgressIntervalRef.current = null;
+          }
+          
+          if (xhr.status >= 200 && xhr.status < 300) {
+            // Smoothly animate from current progress to 100%
+            const currentProgress = progressState.smoothProgress;
+            const targetProgress = 100;
+            const steps = 20; // Number of steps for smooth completion
+            const increment = (targetProgress - currentProgress) / steps;
+            let stepProgress = currentProgress;
+            
+            uploadCompleteIntervalRef.current = setInterval(() => {
+              stepProgress += increment;
+              if (stepProgress >= 100) {
+                stepProgress = 100;
+                if (uploadCompleteIntervalRef.current) {
+                  clearInterval(uploadCompleteIntervalRef.current);
+                  uploadCompleteIntervalRef.current = null;
+                }
+                setUploadProgress(100);
+                // Show 100% for a moment before completing
+                setTimeout(async () => {
+                  await fetchDocuments();
+                  setUploading(false);
+                  setUploadProgress(0);
+                  setUploadFileName('');
+                  uploadXHRRef.current = null;
+                  resolve();
+                }, 500);
+              } else {
+                setUploadProgress(stepProgress);
+              }
+            }, 50) as NodeJS.Timeout; // Update every 50ms for smooth completion animation
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              setError(errorData.message || 'Upload failed');
+            } catch {
+              setError('Upload failed');
+            }
+            if (uploadProgressIntervalRef.current) {
+              clearInterval(uploadProgressIntervalRef.current);
+              uploadProgressIntervalRef.current = null;
+            }
+            if (uploadCompleteIntervalRef.current) {
+              clearInterval(uploadCompleteIntervalRef.current);
+              uploadCompleteIntervalRef.current = null;
+            }
+            setUploading(false);
+            setUploadProgress(0);
+            setUploadFileName('');
+            uploadXHRRef.current = null;
+            reject(new Error('Upload failed'));
+          }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+          if (uploadProgressIntervalRef.current) {
+            clearInterval(uploadProgressIntervalRef.current);
+            uploadProgressIntervalRef.current = null;
+          }
+          if (uploadCompleteIntervalRef.current) {
+            clearInterval(uploadCompleteIntervalRef.current);
+            uploadCompleteIntervalRef.current = null;
+          }
+          setError('Network error. Please check your connection.');
+          setUploading(false);
+          setUploadProgress(0);
+          setUploadFileName('');
+          uploadXHRRef.current = null;
+          reject(new Error('Network error'));
+        });
+
+        // Handle abort
+        xhr.addEventListener('abort', () => {
+          if (uploadProgressIntervalRef.current) {
+            clearInterval(uploadProgressIntervalRef.current);
+            uploadProgressIntervalRef.current = null;
+          }
+          if (uploadCompleteIntervalRef.current) {
+            clearInterval(uploadCompleteIntervalRef.current);
+            uploadCompleteIntervalRef.current = null;
+          }
+          setUploading(false);
+          setUploadProgress(0);
+          setUploadFileName('');
+          uploadXHRRef.current = null;
+          
+          // If cancellation was intentional, don't reject (to avoid unhandled promise rejection)
+          if (uploadCancelledRef.current) {
+            setError('Upload cancelled by user');
+            uploadCancelledRef.current = false;
+            resolve(); // Resolve instead of reject for intentional cancellation
+          } else {
+            setError('Upload cancelled');
+            reject(new Error('Upload cancelled'));
+          }
+        });
+
+        // Open and send request
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        xhr.open('POST', `${apiUrl}/api/documents/upload`);
+        
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+
+        xhr.send(formData);
+      });
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Upload failed');
-    } finally {
+      setError(error.message || 'Upload failed');
       setUploading(false);
+      setUploadProgress(0);
+      setUploadFileName('');
+      uploadXHRRef.current = null;
+      if (uploadProgressIntervalRef.current) {
+        clearInterval(uploadProgressIntervalRef.current);
+        uploadProgressIntervalRef.current = null;
+      }
+      if (uploadCompleteIntervalRef.current) {
+        clearInterval(uploadCompleteIntervalRef.current);
+        uploadCompleteIntervalRef.current = null;
+      }
     }
+  };
+
+  const handleCancelUpload = () => {
+    // Mark that cancellation is intentional
+    uploadCancelledRef.current = true;
+    
+    if (uploadXHRRef.current) {
+      uploadXHRRef.current.abort();
+      // Don't set to null here, let the abort handler do the cleanup
+    }
+    
+    // Also clean up intervals immediately for better UX
+    if (uploadProgressIntervalRef.current) {
+      clearInterval(uploadProgressIntervalRef.current);
+      uploadProgressIntervalRef.current = null;
+    }
+    
+    if (uploadCompleteIntervalRef.current) {
+      clearInterval(uploadCompleteIntervalRef.current);
+      uploadCompleteIntervalRef.current = null;
+    }
+    
+    // UI updates can happen here, but the abort handler will also handle cleanup
+    setError('Cancelling upload...');
   };
 
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      await handleFileUpload(file);
+      try {
+        await handleFileUpload(file);
+      } catch (error: any) {
+        // Silently handle cancellation errors - they're already handled in the abort listener
+        if (error.message !== 'Upload cancelled' && error.message !== 'Upload cancelled by user') {
+          console.error('Upload error:', error);
+        }
+      }
     }
   };
 
@@ -181,47 +405,99 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow">
+      <header className="bg-white shadow sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <Logo className="h-10 w-10 rounded-lg object-cover" size={40} />
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Quizzly</h1>
-                <p className="text-gray-600">
-                  Welcome back, {user?.isGuest ? 'Guest User' : user?.email}
-                  {user?.isGuest && <span className="text-yellow-600 ml-2">(Temporary Session)</span>}
+          <div className="flex justify-between items-center py-4 sm:py-6">
+            {/* Logo and Title Section */}
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+              <Logo className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover flex-shrink-0" size={40} />
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Quizzly</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  <span className="hidden sm:inline">Welcome back, </span>
+                  <span className="font-medium">{user?.isGuest ? 'Guest' : user?.email?.split('@')[0] || 'User'}</span>
+                  {user?.isGuest && <span className="text-yellow-600 ml-1 sm:ml-2 text-xs">(Temp)</span>}
                 </p>
               </div>
             </div>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => navigate('/about')}
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                About
-              </button>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
               <button
                 onClick={() => navigate('/revision')}
-                className="btn-secondary"
+                className="btn-secondary text-sm lg:text-base"
               >
-                Revision History
+                Revision
               </button>
               <button
                 onClick={() => navigate('/favorites')}
-                className="btn-accent"
+                className="btn-accent text-sm lg:text-base"
               >
                 Favorites
               </button>
-              {/* Theme toggle could be added to a top-level layout, left out here for brevity */}
               <button
                 onClick={logout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow"
+                className="bg-red-600 hover:bg-red-700 text-white px-3 lg:px-4 py-2 rounded-lg shadow text-sm lg:text-base transition-colors"
               >
                 Logout
               </button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex-shrink-0 ml-2">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                aria-expanded="false"
+              >
+                <span className="sr-only">Open main menu</span>
+                {!mobileMenuOpen ? (
+                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                ) : (
+                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200 py-4 transition-all duration-200 ease-in-out">
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => {
+                    navigate('/revision');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-left btn-secondary text-sm"
+                >
+                  Revision History
+                </button>
+                <button
+                  onClick={() => {
+                    navigate('/favorites');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-left btn-accent text-sm"
+                >
+                  Favorites
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-left bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow text-sm mt-2"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -270,9 +546,37 @@ const Dashboard: React.FC = () => {
                 />
               </div>
               {uploading && (
-                <div className="mt-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-sm text-gray-600">Processing PDF...</p>
+                <div className="mt-6 space-y-3">
+                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                        <span className="text-sm font-medium text-gray-700">Uploading...</span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm font-semibold text-blue-600">{Math.round(uploadProgress)}%</span>
+                        <button
+                          onClick={handleCancelUpload}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                          title="Cancel upload"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                    <ProgressBar 
+                      isActive={true} 
+                      progress={uploadProgress}
+                      variant="primary" 
+                      className="w-full"
+                      showPercentage={false}
+                      animated={true}
+                    />
+                    <p className="mt-2 text-xs text-gray-500 truncate">{uploadFileName}</p>
+                    {uploadProgress >= 95 && uploadProgress < 100 && (
+                      <p className="mt-1 text-xs text-blue-600 animate-pulse">Processing PDF content...</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

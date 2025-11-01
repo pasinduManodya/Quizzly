@@ -188,11 +188,25 @@ router.patch('/users/:userId/subscription', adminAuth, asyncHandler(async (req, 
   // Update subscription fields
   if (typeof isPro === 'boolean') user.isPro = isPro;
   if (subscriptionType) user.subscriptionType = subscriptionType;
-  if (subscriptionExpiry) user.subscriptionExpiry = new Date(subscriptionExpiry);
+  // Handle subscriptionExpiry - can be null for free plans
+  if (subscriptionExpiry !== undefined) {
+    user.subscriptionExpiry = subscriptionExpiry ? new Date(subscriptionExpiry) : null;
+  }
   if (subscriptionStartDate) user.subscriptionStartDate = new Date(subscriptionStartDate);
-  if (paymentMethod) user.paymentMethod = paymentMethod;
+  // Handle paymentMethod - can be null for free plans
+  if (paymentMethod !== undefined) {
+    user.paymentMethod = paymentMethod || null;
+  }
 
   await user.save();
+  
+  // Reload token limits based on new subscription status
+  try {
+    await user.loadTokenLimits();
+  } catch (limitError) {
+    console.error('Error loading token limits after subscription update:', limitError);
+    // Don't fail the request, just log the error
+  }
 
   logger.info(`Admin ${req.user.email} updated user ${user.email} subscription`, {
     adminId: req.user._id,
@@ -470,25 +484,62 @@ router.patch('/token-limits/:subscriptionType', adminAuth, asyncHandler(async (r
       description
     }, req.user._id);
   
-  logger.info(`Admin ${req.user.email} updated token limits for ${subscriptionType}`, {
-    adminId: req.user._id,
-    subscriptionType,
-    dailyLimit: limits.dailyLimit,
-    monthlyLimit: limits.monthlyLimit
-  });
-  
-  res.json({
-    success: true,
-    message: 'Token limits updated successfully',
-    data: {
-      id: limits._id,
-      subscriptionType: limits.subscriptionType,
-      dailyLimit: limits.dailyLimit,
-      monthlyLimit: limits.monthlyLimit,
-      description: limits.description,
-      updatedAt: limits.updatedAt
+    // Reload limits for all users with this subscription type
+    // This ensures existing users get the updated limits immediately
+    try {
+      const User = require('../models/User');
+      let query = {};
+      
+      // Find all users (we'll check their actual subscription status to match correctly)
+      // For guest, only get guest users. For others, exclude guests.
+      const userQuery = subscriptionType === 'guest' 
+        ? { isGuest: true }
+        : { isGuest: { $ne: true } };
+      
+      const allUsers = await User.find(userQuery);
+      let updatedCount = 0;
+      
+      for (const user of allUsers) {
+        try {
+          // Get the user's actual subscription status (checks isPro, subscriptionType, and active status)
+          const userSubscriptionStatus = user.getSubscriptionStatus();
+          
+          // Only update users whose subscription status matches the updated plan
+          if (userSubscriptionStatus === subscriptionType) {
+            await user.loadTokenLimits();
+            updatedCount++;
+          }
+        } catch (userError) {
+          console.error(`Error updating limits for user ${user._id}:`, userError);
+        }
+      }
+      
+      logger.info(`Updated token limits for ${updatedCount} users with ${subscriptionType} subscription`);
+    } catch (bulkUpdateError) {
+      console.error('Error bulk updating user limits:', bulkUpdateError);
+      // Don't fail the request, just log the error
+      // Users will get updated limits on next login or /me call
     }
-  });
+  
+    logger.info(`Admin ${req.user.email} updated token limits for ${subscriptionType}`, {
+      adminId: req.user._id,
+      subscriptionType,
+      dailyLimit: limits.dailyLimit,
+      monthlyLimit: limits.monthlyLimit
+    });
+    
+    res.json({
+      success: true,
+      message: 'Token limits updated successfully',
+      data: {
+        id: limits._id,
+        subscriptionType: limits.subscriptionType,
+        dailyLimit: limits.dailyLimit,
+        monthlyLimit: limits.monthlyLimit,
+        description: limits.description,
+        updatedAt: limits.updatedAt
+      }
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

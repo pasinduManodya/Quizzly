@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PWAInstallButton from '../components/PWAInstallButton';
 import Logo from '../components/Logo';
 
 const Landing: React.FC = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   React.useEffect(() => {
     // Cleanup: just log that we're on landing page
     console.log('Landing page loaded');
@@ -109,6 +111,8 @@ const Landing: React.FC = () => {
               Quizzly
             </span>
           </div>
+          
+          {/* Desktop Navigation */}
           <nav className="hidden sm:flex items-center space-x-6">
             <Link to="/about" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">About</Link>
             <Link to="/pricing" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Pricing</Link>
@@ -117,7 +121,61 @@ const Landing: React.FC = () => {
               Get Started
             </Link>
           </nav>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="sm:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500 transition-colors"
+            aria-expanded="false"
+          >
+            <span className="sr-only">Open main menu</span>
+            {!mobileMenuOpen ? (
+              <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            ) : (
+              <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-teal-100/50 bg-white/95 backdrop-blur-md">
+            <div className="px-6 pt-2 pb-4 space-y-1">
+              <Link
+                to="/about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-3 text-base font-medium text-gray-700 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+              >
+                About
+              </Link>
+              <Link
+                to="/pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-3 text-base font-medium text-gray-700 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+              >
+                Pricing
+              </Link>
+              <Link
+                to="/contact"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-3 text-base font-medium text-gray-700 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+              >
+                Contact
+              </Link>
+              <Link
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block px-3 py-3 text-base font-semibold text-white bg-gradient-to-r from-teal-500 to-violet-600 rounded-lg hover:shadow-lg transition-all duration-200 text-center"
+              >
+                Get Started
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
@@ -141,24 +199,28 @@ const Landing: React.FC = () => {
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed">
-              Upload PDFs → AI generates quizzes (MCQ, Essay, or Mix) → Get smart feedback → Mark favorites and revise later
+              Upload your PDFs and let AI turn them into smart, personalized quizzes with instant feedback and easy revision
             </p>
           </div>
           
-          <div className="animate-fade-in-up flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+          <div className="animate-fade-in-up flex flex-col items-center justify-center gap-4 mb-8">
+            {/* First Row: Start Free and Install App */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link 
+                to="/login" 
+                className="bg-gradient-to-r from-teal-500 to-violet-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:from-teal-600 hover:to-violet-700"
+              >
+                🚀 Start Free
+              </Link>
+              <PWAInstallButton />
+            </div>
+            {/* Second Row: Continue as Guest */}
             <Link 
               to="/login" 
-              className="bg-gradient-to-r from-teal-500 to-violet-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:from-teal-600 hover:to-violet-700"
-            >
-              🚀 Start Free
-            </Link>
-            <Link 
-              to="/login" 
-              className="bg-white text-gray-700 px-8 py-4 rounded-2xl font-bold text-lg border-2 border-teal-200 hover:border-teal-400 hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="text-gray-600 text-sm hover:text-teal-600 transition-colors underline underline-offset-4"
             >
               👤 Continue as Guest
             </Link>
-            <PWAInstallButton />
           </div>
           
           <div className="animate-fade-in-up text-sm text-gray-500 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 inline-block">

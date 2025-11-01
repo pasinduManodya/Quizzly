@@ -386,77 +386,82 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
             {typeof summary === 'string' ? parseFormattedText(summary) : <p className="text-gray-500 italic">No summary available</p>}
           </div>
         </div>
-          <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-between items-center">
-            <div className="flex space-x-3">
-              <button 
-                onClick={handleSimplifiedSummary}
-                disabled={isGeneratingSimplified || !documentId}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 relative overflow-hidden"
-              >
-                {isGeneratingSimplified ? (
-                  <div className="flex flex-col items-center space-y-2 w-full">
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Generating...</span>
+          <div className="px-6 py-4 border-t border-gray-200 bg-white">
+            {/* Mobile: Stack buttons vertically, Desktop: Horizontal layout */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
+              {/* Action Buttons Container */}
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 flex-1 sm:flex-initial">
+                <button 
+                  onClick={handleSimplifiedSummary}
+                  disabled={isGeneratingSimplified || !documentId}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 relative overflow-hidden w-full sm:w-auto"
+                >
+                  {isGeneratingSimplified ? (
+                    <div className="flex flex-col items-center space-y-2 w-full">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Generating...</span>
+                      </div>
+                      <ProgressBar 
+                        isActive={true} 
+                        progress={simplifiedProgress}
+                        variant="success" 
+                        className="w-full"
+                        showPercentage={true}
+                        animated={true}
+                      />
                     </div>
-                    <ProgressBar 
-                      isActive={true} 
-                      progress={simplifiedProgress}
-                      variant="success" 
-                      className="w-full"
-                      showPercentage={true}
-                      animated={true}
-                    />
-                  </div>
-                ) : (
-                  <>
-                  <span>📝</span>
-                  <span>More Simplified Version</span>
-                  </>
-                )}
-              </button>
-              <button 
-                onClick={() => {
-                  console.log('🔄 Shorter summary button clicked');
-                  console.log('📄 Document ID:', documentId);
-                  console.log('🔧 Callback function:', !!onShorterSummary);
-                  console.log('🔧 Current showLengthModal state:', showLengthModal);
-                  console.log('🔧 Setting showLengthModal to true');
-                  setShowLengthModal(true);
-                  console.log('🔧 showLengthModal state should now be true');
-                }}
-                disabled={isGeneratingShorter || !documentId}
-                className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 relative overflow-hidden"
-              >
-                {isGeneratingShorter ? (
-                  <div className="flex flex-col items-center space-y-2 w-full">
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Generating...</span>
+                  ) : (
+                    <>
+                      <span>📝</span>
+                      <span>More Simplified Version</span>
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={() => {
+                    console.log('🔄 Shorter summary button clicked');
+                    console.log('📄 Document ID:', documentId);
+                    console.log('🔧 Callback function:', !!onShorterSummary);
+                    console.log('🔧 Current showLengthModal state:', showLengthModal);
+                    console.log('🔧 Setting showLengthModal to true');
+                    setShowLengthModal(true);
+                    console.log('🔧 showLengthModal state should now be true');
+                  }}
+                  disabled={isGeneratingShorter || !documentId}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 relative overflow-hidden w-full sm:w-auto"
+                >
+                  {isGeneratingShorter ? (
+                    <div className="flex flex-col items-center space-y-2 w-full">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Generating...</span>
+                      </div>
+                      <ProgressBar 
+                        isActive={true} 
+                        progress={shorterProgress}
+                        variant="warning" 
+                        className="w-full"
+                        showPercentage={true}
+                        animated={true}
+                      />
                     </div>
-                    <ProgressBar 
-                      isActive={true} 
-                      progress={shorterProgress}
-                      variant="warning" 
-                      className="w-full"
-                      showPercentage={true}
-                      animated={true}
-                    />
-                  </div>
-                ) : (
-                  <>
-                  <span>📏</span>
-                  <span>More Shorter Version</span>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <span>📏</span>
+                      <span>More Shorter Version</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {/* Close Button */}
+              <button 
+                onClick={onClose} 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors w-full sm:w-auto"
+              >
+                Close
               </button>
             </div>
-            <button 
-              onClick={onClose} 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-            >
-              Close
-            </button>
           </div>
         </div>
       </div>

@@ -141,7 +141,7 @@ const Landing: React.FC = () => {
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed">
-              Upload PDFs → AI generates quizzes (MCQ, Essay, or Mix) → Get smart feedback → Mark favorites and revise later
+              Upload your PDFs and let AI turn them into smart, personalized quizzes with instant feedback and easy revision
             </p>
           </div>
           

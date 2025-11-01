@@ -75,8 +75,51 @@ const UsersTab: React.FC = () => {
       await axios.patch(`/api/admin/users/${userId}/subscription`, subscriptionData);
       await fetchUsers();
       setEditingSubscription(false);
-    } catch (error) {
+      alert('Subscription updated successfully!');
+    } catch (error: any) {
       console.error('Error updating subscription:', error);
+      alert(error.response?.data?.message || 'Failed to update subscription');
+    }
+  };
+
+  const handleChangePlan = async (userId: string, newPlan: 'free' | 'pro' | 'premium') => {
+    if (!window.confirm(`Change user plan to ${newPlan.toUpperCase()}?\n\nThis will update their subscription and token limits immediately.`)) {
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      
+      const subscriptionData = {
+        subscriptionType: newPlan,
+        isPro: newPlan === 'pro' || newPlan === 'premium',
+        subscriptionStartDate: now.toISOString(),
+        subscriptionExpiry: newPlan === 'free' ? null : oneYearLater.toISOString(), // No expiry for free, 1 year for paid plans
+        paymentMethod: newPlan === 'free' ? null : 'Admin Assignment' // Set payment method for tracking
+      };
+      await handleUpdateSubscription(userId, subscriptionData);
+    } catch (error) {
+      console.error('Error changing plan:', error);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${userEmail}"?\n\nThis will delete:\n- User account\n- All their documents\n- All their quiz results\n- All their favorites\n\nThis action CANNOT be undone!`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/admin/users/${userId}`);
+      alert('User deleted successfully!');
+      await fetchUsers();
+      if (selectedUser?.id === userId) {
+        setShowUserModal(false);
+        setSelectedUser(null);
+      }
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      alert(error.response?.data?.message || 'Failed to delete user');
     }
   };
 
@@ -400,22 +443,71 @@ const UsersTab: React.FC = () => {
                     </div>
                   </td>
                   
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setShowUserModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => handleUpdateRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
-                      className="text-green-600 hover:text-green-900"
-                    >
-                      {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowUserModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          View Details
+                        </button>
+                        <button
+                          onClick={() => handleUpdateRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                        </button>
+                      </div>
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => handleChangePlan(user.id, 'free')}
+                          className={`text-xs px-2 py-1 rounded ${
+                            user.subscriptionStatus === 'free' 
+                              ? 'bg-gray-200 text-gray-700 cursor-not-allowed' 
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                          disabled={user.subscriptionStatus === 'free'}
+                          title="Change to Free"
+                        >
+                          Free
+                        </button>
+                        <button
+                          onClick={() => handleChangePlan(user.id, 'pro')}
+                          className={`text-xs px-2 py-1 rounded ${
+                            user.subscriptionStatus === 'pro' 
+                              ? 'bg-blue-200 text-blue-700 cursor-not-allowed' 
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                          disabled={user.subscriptionStatus === 'pro'}
+                          title="Change to Pro"
+                        >
+                          Pro
+                        </button>
+                        <button
+                          onClick={() => handleChangePlan(user.id, 'premium')}
+                          className={`text-xs px-2 py-1 rounded ${
+                            user.subscriptionStatus === 'premium' 
+                              ? 'bg-purple-200 text-purple-700 cursor-not-allowed' 
+                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                          }`}
+                          disabled={user.subscriptionStatus === 'premium'}
+                          title="Change to Premium"
+                        >
+                          Premium
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteUser(user.id, user.email)}
+                        className="text-red-600 hover:text-red-900 text-xs"
+                        title="Delete User"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -572,40 +664,65 @@ const UsersTab: React.FC = () => {
                 </div>
               </div>
               
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowUserModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingSubscription(true);
-                    setShowUserModal(false);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                >
-                  Edit Subscription
-                </button>
-                <button
-                  onClick={() => {
-                    // Reset daily tokens
-                    handleResetTokens(selectedUser.id, 'daily');
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                >
-                  Reset Daily Tokens
-                </button>
-                <button
-                  onClick={() => {
-                    // Reset monthly tokens
-                    handleResetTokens(selectedUser.id, 'monthly');
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
-                >
-                  Reset Monthly Tokens
-                </button>
+              <div className="mt-6 flex justify-between">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleChangePlan(selectedUser.id, 'free')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md ${
+                      selectedUser.subscriptionStatus === 'free'
+                        ? 'bg-gray-200 text-gray-700 cursor-not-allowed'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    disabled={selectedUser.subscriptionStatus === 'free'}
+                  >
+                    Set to Free
+                  </button>
+                  <button
+                    onClick={() => handleChangePlan(selectedUser.id, 'pro')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md ${
+                      selectedUser.subscriptionStatus === 'pro'
+                        ? 'bg-blue-200 text-blue-700 cursor-not-allowed'
+                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    }`}
+                    disabled={selectedUser.subscriptionStatus === 'pro'}
+                  >
+                    Set to Pro
+                  </button>
+                  <button
+                    onClick={() => handleChangePlan(selectedUser.id, 'premium')}
+                    className={`px-4 py-2 text-sm font-medium rounded-md ${
+                      selectedUser.subscriptionStatus === 'premium'
+                        ? 'bg-purple-200 text-purple-700 cursor-not-allowed'
+                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                    }`}
+                    disabled={selectedUser.subscriptionStatus === 'premium'}
+                  >
+                    Set to Premium
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingSubscription(true);
+                      setShowUserModal(false);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  >
+                    Edit Details
+                  </button>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowUserModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(selectedUser.id, selectedUser.email)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  >
+                    🗑️ Delete User
+                  </button>
+                </div>
               </div>
             </div>
           </div>
