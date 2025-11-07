@@ -1,15 +1,66 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Determine API base URL
+// If REACT_APP_API_URL is set, use it; otherwise use relative path for same-origin requests
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 // Set up axios defaults
 axios.defaults.baseURL = API_BASE_URL;
 
+// Set default headers
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+axios.defaults.headers.common['Accept'] = 'application/json';
+
+// Request interceptor to add Authorization token and ensure headers are set
+axios.interceptors.request.use(
+  (config) => {
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    
+    // Add Authorization header if token exists
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Ensure Content-Type is set for non-FormData requests
+    if (!config.headers['Content-Type'] && !(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Remove Content-Type header for FormData (browser will set it with boundary)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for error handling
+axios.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // Handle 401 Unauthorized - clear token and redirect to login
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      // Only redirect if not already on login/signup page
+      if (!window.location.pathname.includes('/login') && 
+          !window.location.pathname.includes('/signup')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Documents API
 export const documentsAPI = {
-  upload: (formData: FormData) => axios.post('/api/documents/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  upload: (formData: FormData) => axios.post('/api/documents/upload', formData),
   
   // Regenerate questions for a document with options
   regenerate: (

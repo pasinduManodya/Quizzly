@@ -34,14 +34,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Enhanced CORS configuration for development
+// Enhanced CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log('CORS Origin check:', origin);
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (same-origin requests, mobile apps, curl, etc.)
+    // Same-origin requests don't send Origin header - this is normal behavior
     if (!origin) {
-      console.log('✅ CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
@@ -53,19 +51,25 @@ const corsOptions = {
           origin.startsWith('http://localhost:') ||
           origin.startsWith('http://127.0.0.1:') ||
           origin.startsWith('https://localhost:')) {
-        console.log('✅ CORS: Allowing localhost origin:', origin);
         return callback(null, true);
       }
     }
     
     // In production, check against allowed origins
-    const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [];
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS: Allowing production origin:', origin);
+    // If FRONTEND_URL is set, use it; otherwise allow same-origin (no origin header)
+    const allowedOrigins = process.env.FRONTEND_URL 
+      ? [process.env.FRONTEND_URL] 
+      : [];
+    
+    // If no FRONTEND_URL is set and we're in production, allow same-origin requests
+    if (allowedOrigins.length === 0 && process.env.NODE_ENV === 'production') {
       return callback(null, true);
     }
     
-    console.log('❌ CORS: Blocking origin:', origin);
+    if (allowedOrigins.length > 0 && allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -99,11 +103,14 @@ app.use(cors(corsOptions));
 
 // Request logging middleware for debugging
 app.use((req, res, next) => {
-  console.log(`\n🌐 ${req.method} ${req.path}`);
-  console.log('Origin:', req.headers.origin);
-  console.log('User-Agent:', req.headers['user-agent']);
-  console.log('Content-Type:', req.headers['content-type']);
-  console.log('Authorization:', req.headers.authorization ? 'Present' : 'Not present');
+  // Only log in development or if DEBUG is enabled
+  if (process.env.NODE_ENV !== 'production' || process.env.DEBUG === 'true') {
+    console.log(`\n🌐 ${req.method} ${req.path}`);
+    console.log('Origin:', req.headers.origin || 'Same-origin (no Origin header)');
+    console.log('User-Agent:', req.headers['user-agent']);
+    console.log('Content-Type:', req.headers['content-type'] || 'Not set');
+    console.log('Authorization:', req.headers.authorization ? 'Present' : 'Not present');
+  }
   next();
 });
 
