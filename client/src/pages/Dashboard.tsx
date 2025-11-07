@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, favoritesAPI } from '../services/api';
@@ -17,7 +17,34 @@ interface Document {
 }
 
 const Dashboard: React.FC = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documentsState, setDocumentsState] = useState<Document[]>([]);
+  
+  // Wrapper to track all setDocuments calls
+  const setDocuments = useCallback((newDocuments: Document[] | ((prev: Document[]) => Document[])) => {
+    const callId = `setDocs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const stackTrace = new Error().stack;
+    
+    console.log(`🔴 [${callId}] setDocuments called`, {
+      isFunction: typeof newDocuments === 'function',
+      currentCount: documentsState.length,
+      newCount: typeof newDocuments === 'function' ? 'function (will compute)' : (Array.isArray(newDocuments) ? newDocuments.length : 'unknown'),
+      stackTrace: stackTrace?.split('\n').slice(0, 5).join('\n')
+    });
+    
+    setDocumentsState((prev) => {
+      const result = typeof newDocuments === 'function' ? newDocuments(prev) : newDocuments;
+      console.log(`🔴 [${callId}] setDocuments state update:`, {
+        prevCount: prev.length,
+        newCount: Array.isArray(result) ? result.length : 'not array',
+        result: Array.isArray(result) ? result.map((d: any) => ({ id: d._id || d.id, title: d.title })) : result
+      });
+      return result;
+    });
+  }, [documentsState.length]);
+  
+  // Alias for easier access
+  const documents = documentsState;
+  
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -35,6 +62,15 @@ const Dashboard: React.FC = () => {
   const [summaryTitle, setSummaryTitle] = useState('');
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Debug: Track documents state changes
+  useEffect(() => {
+    console.log('🔍 [DEBUG] Documents state changed:', {
+      count: documents.length,
+      documents: documents.map(d => ({ id: d._id, title: d.title })),
+      timestamp: new Date().toISOString()
+    });
+  }, [documents]);
   // Debug summaryText changes
   useEffect(() => {
     console.log('🔄 Dashboard summaryText changed:', typeof summaryText === 'string' ? summaryText.substring(0, 100) + '...' : 'Non-string summary');
@@ -50,12 +86,23 @@ const Dashboard: React.FC = () => {
   const [coverAllTopics, setCoverAllTopics] = useState<boolean>(false);
   const [startingQuiz, setStartingQuiz] = useState(false);
 
+  const isInitialMount = useRef(true);
+  
   useEffect(() => {
-    fetchDocuments();
-    fetchFavorites();
+    console.log('🟡 [MOUNT] Dashboard useEffect called', { isInitialMount: isInitialMount.current });
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      console.log('🟡 [MOUNT] Initial mount - fetching documents');
+      fetchDocuments(false); // false = can clear on error for initial load
+      fetchFavorites();
+    } else {
+      console.log('🟡 [MOUNT] Re-render detected - NOT fetching documents again');
+    }
     
     // Cleanup function to cancel any ongoing uploads when component unmounts
     return () => {
+      console.log('🟡 [UNMOUNT] Dashboard cleanup called');
       if (uploadXHRRef.current) {
         uploadXHRRef.current.abort();
         uploadXHRRef.current = null;
@@ -69,16 +116,75 @@ const Dashboard: React.FC = () => {
         uploadCompleteIntervalRef.current = null;
       }
     };
-  }, []);
+  }, []); // Empty deps - only run on mount
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (preserveOnError = false) => {
+    const callId = `fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`🔵 [${callId}] fetchDocuments called`, { preserveOnError, currentDocsCount: documents.length });
+    
     try {
+      console.log(`🔵 [${callId}] Calling documentsAPI.getAll()...`);
       const response = await documentsAPI.getAll();
-      setDocuments(response.data);
-    } catch (error) {
-      console.error('Error fetching documents:', error);
+      
+      console.log(`🔵 [${callId}] API Response received:`, {
+        hasResponse: !!response,
+        hasData: !!response?.data,
+        dataType: typeof response?.data,
+        isArray: Array.isArray(response?.data),
+        rawData: response?.data,
+        dataLength: Array.isArray(response?.data) ? response?.data.length : 'N/A'
+      });
+      
+      // Ensure we have an array - handle both direct array and wrapped response
+      const documentsData = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data?.data || response.data || []);
+      
+      console.log(`🔵 [${callId}] Processed documents data:`, {
+        count: documentsData.length,
+        isArray: Array.isArray(documentsData),
+        documents: documentsData.map((d: any) => ({ id: d._id || d.id, title: d.title }))
+      });
+      
+      console.log(`🔵 [${callId}] Current documents before setDocuments:`, documents.length);
+      console.log(`🔵 [${callId}] Setting documents to:`, documentsData.length);
+      
+      setDocuments(documentsData);
+      
+      // Verify state was updated (use documentsState to avoid stale closure)
+      setTimeout(() => {
+        // Use a ref or check the actual state - but this is just for debugging
+        console.log(`🔵 [${callId}] Documents state after setDocuments (async check) - note: may show stale value due to closure`);
+      }, 100);
+      
+      console.log(`✅ [${callId}] fetchDocuments completed successfully`);
+      return documentsData;
+    } catch (error: any) {
+      console.error(`❌ [${callId}] Error fetching documents:`, error);
+      console.error(`❌ [${callId}] Error details:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.response?.data?.message || error.message,
+        data: error.response?.data,
+        stack: error.stack
+      });
+      
+      // Don't clear documents on error if preserveOnError is true
+      if (!preserveOnError) {
+        console.warn(`⚠️ [${callId}] Clearing documents due to error (preserveOnError=false)`);
+        setDocuments([]);
+      } else {
+        console.log(`✅ [${callId}] Preserving existing documents (preserveOnError=true), current count:`, documents.length);
+      }
+      
+      if (error.response?.status === 401) {
+        // If unauthorized, might need to re-authenticate
+        console.warn(`⚠️ [${callId}] Unauthorized - might need to refresh token`);
+      }
+      throw error; // Re-throw to allow retry logic
     } finally {
       setLoading(false);
+      console.log(`🔵 [${callId}] fetchDocuments finally block - loading set to false`);
     }
   };
 
@@ -183,14 +289,70 @@ const Dashboard: React.FC = () => {
                   uploadCompleteIntervalRef.current = null;
                 }
                 setUploadProgress(100);
+                console.log('🟢 Upload progress reached 100%, starting document refresh...');
+                console.log('🟢 Current documents count before refresh:', documents.length);
+                
                 // Show 100% for a moment before completing
                 setTimeout(async () => {
-                  await fetchDocuments();
-                  setUploading(false);
-                  setUploadProgress(0);
-                  setUploadFileName('');
-                  uploadXHRRef.current = null;
-                  resolve();
+                  const refreshId = `refresh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                  console.log(`🟢 [${refreshId}] Starting document refresh after upload`);
+                  
+                  try {
+                    // Add a small delay to ensure backend has saved the document
+                    console.log(`🟢 [${refreshId}] Waiting 500ms for backend to save...`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Fetch documents with retry logic
+                    let retries = 3;
+                    let success = false;
+                    console.log(`🟢 [${refreshId}] Starting retry loop, max retries: ${retries}`);
+                    
+                    while (retries > 0 && !success) {
+                      const attemptNum = 4 - retries;
+                      console.log(`🟢 [${refreshId}] Attempt ${attemptNum}/${3} to fetch documents...`);
+                      console.log(`🟢 [${refreshId}] Current documents before fetch:`, documents.length);
+                      
+                      try {
+                        // Use preserveOnError=true to keep existing documents if fetch fails
+                        const fetchedDocs = await fetchDocuments(true);
+                        success = true;
+                        console.log(`✅ [${refreshId}] Documents refreshed successfully! Count:`, fetchedDocs?.length || 0);
+                        console.log(`✅ [${refreshId}] Documents after fetch:`, documents.length);
+                      } catch (error: any) {
+                        retries--;
+                        console.warn(`⚠️ [${refreshId}] Attempt ${attemptNum} failed:`, {
+                          error: error.message,
+                          status: error.response?.status,
+                          retriesLeft: retries
+                        });
+                        
+                        if (retries > 0) {
+                          console.log(`🟢 [${refreshId}] Waiting 500ms before retry...`);
+                          await new Promise(resolve => setTimeout(resolve, 500));
+                        } else {
+                          // Last retry failed - log but don't clear documents
+                          console.error(`❌ [${refreshId}] All retries failed, keeping existing documents`);
+                          console.error(`❌ [${refreshId}] Current documents count:`, documents.length);
+                        }
+                      }
+                    }
+                    
+                    // Final check
+                    console.log(`🟢 [${refreshId}] Refresh complete. Final documents count:`, documents.length);
+                  } catch (error: any) {
+                    console.error(`❌ [${refreshId}] Error refreshing documents after upload:`, error);
+                    console.error(`❌ [${refreshId}] Error stack:`, error.stack);
+                    console.error(`❌ [${refreshId}] Current documents count:`, documents.length);
+                    // Still complete the upload even if fetch fails
+                  } finally {
+                    console.log(`🟢 [${refreshId}] Cleaning up upload state...`);
+                    setUploading(false);
+                    setUploadProgress(0);
+                    setUploadFileName('');
+                    uploadXHRRef.current = null;
+                    console.log(`🟢 [${refreshId}] Upload cleanup complete. Documents count:`, documents.length);
+                    resolve();
+                  }
                 }, 500);
               } else {
                 setUploadProgress(stepProgress);
@@ -264,7 +426,8 @@ const Dashboard: React.FC = () => {
         });
 
         // Open and send request
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        // Use relative path for same-origin requests (no localhost fallback to avoid local network prompt)
+        const apiUrl = process.env.REACT_APP_API_URL || '';
         xhr.open('POST', `${apiUrl}/api/documents/upload`);
         
         if (token) {

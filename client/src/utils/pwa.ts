@@ -1,6 +1,24 @@
 // PWA Service Worker Registration
 export const registerServiceWorker = () => {
-  // Temporarily disabled to avoid cache issues during development
+  // Unregister any existing service workers first to avoid conflicts
+  if ('serviceWorker' in navigator) {
+    // Unregister all service workers first
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        console.log('Unregistering old service worker:', registration.scope);
+        registration.unregister().then((success) => {
+          if (success) {
+            console.log('Service worker unregistered successfully');
+          }
+        });
+      }
+    }).catch((error) => {
+      console.log('Error unregistering service workers:', error);
+    });
+  }
+  
+  // Service worker is disabled - don't register new one
+  // This prevents caching issues and the POST request error
   if (false && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')
