@@ -14,30 +14,27 @@ axios.defaults.headers.common['Accept'] = 'application/json';
 // Request interceptor to add Authorization token and ensure headers are set
 axios.interceptors.request.use(
   (config) => {
-    // Ensure headers object exists
-    if (!config.headers) {
-      config.headers = {};
-    }
-    
     // Get token from localStorage
     const token = localStorage.getItem('token');
     
     // Add Authorization header if token exists
-    if (token) {
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
     // Handle Content-Type header
-    if (config.data instanceof FormData) {
-      // Remove Content-Type header for FormData (browser will set it with boundary)
-      delete config.headers['Content-Type'];
-      delete config.headers['content-type'];
-    } else {
-      // Ensure Content-Type is set for non-FormData requests
-      // Check both uppercase and lowercase variants
-      const hasContentType = config.headers['Content-Type'] || config.headers['content-type'];
-      if (!hasContentType) {
-        config.headers['Content-Type'] = 'application/json';
+    if (config.headers) {
+      if (config.data instanceof FormData) {
+        // Remove Content-Type header for FormData (browser will set it with boundary)
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      } else {
+        // Ensure Content-Type is set for non-FormData requests
+        // Check both uppercase and lowercase variants
+        const hasContentType = config.headers['Content-Type'] || config.headers['content-type'];
+        if (!hasContentType) {
+          config.headers['Content-Type'] = 'application/json';
+        }
       }
     }
     
