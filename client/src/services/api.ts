@@ -79,7 +79,8 @@ export const documentsAPI = {
     index: number,
     options: { type?: 'mcq'|'essay'|'structured_essay'|'mixed'; coverAllTopics?: boolean }
   ) => axios.post(`/api/documents/${documentId}/regenerate-one`, { index, ...options }),
-  summarize: (documentId: string) => axios.post(`/api/documents/${documentId}/summary`),
+  summarize: (documentId: string, config?: { signal?: AbortSignal }) => 
+    axios.post(`/api/documents/${documentId}/summary`, {}, config),
   
   getAll: () => axios.get('/api/documents'),
   

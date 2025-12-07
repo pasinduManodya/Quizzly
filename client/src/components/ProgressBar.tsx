@@ -7,6 +7,8 @@ interface ProgressBarProps {
   variant?: 'primary' | 'success' | 'warning' | 'info';
   showPercentage?: boolean;
   animated?: boolean;
+  onCancel?: () => void; // Callback when cancel button is clicked
+  showCancelButton?: boolean; // Show cancel button on hover
 }
 
 const ProgressBar: React.FC<ProgressBarProps> = ({
@@ -15,10 +17,13 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   className = '',
   variant = 'primary',
   showPercentage = true,
-  animated = true
+  animated = true,
+  onCancel,
+  showCancelButton = false
 }) => {
   const [internalProgress, setInternalProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Use external progress if provided, otherwise use internal
   const currentProgress = externalProgress !== undefined ? externalProgress : internalProgress;
@@ -68,9 +73,13 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className={`relative w-full ${className}`}>
+    <div 
+      className={`relative w-full ${className}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Background track */}
-      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
+      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner relative group">
         {/* Progress bar */}
         <div
           className={`h-full ${styles.bg} rounded-full transition-all duration-300 ease-out relative overflow-hidden ${
@@ -97,14 +106,74 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             ></div>
           )}
         </div>
+
+        {/* Cancel button on hover */}
+        {showCancelButton && onCancel && isHovered && (
+          <button
+            onClick={(e) => {
+              console.log('🛑 ProgressBar cancel button (hover) clicked');
+              e.stopPropagation();
+              onCancel();
+            }}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/60 rounded-full transition-all duration-200 group-hover:opacity-100 opacity-0"
+            title="Cancel operation"
+          >
+            <svg 
+              className="w-4 h-4 text-white" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={3} 
+                d="M6 18L18 6M6 6l12 12" 
+              />
+            </svg>
+          </button>
+        )}
       </div>
       
-      {/* Percentage text */}
-      {showPercentage && (
-        <div className={`text-xs font-semibold mt-1 ${styles.text} transition-opacity duration-300`}>
-          {Math.round(currentProgress)}%
-        </div>
-      )}
+      {/* Percentage text and cancel button container */}
+      <div className="flex items-center justify-between mt-1">
+        {/* Percentage text */}
+        {showPercentage && (
+          <div className={`text-xs font-semibold ${styles.text} transition-opacity duration-300`}>
+            {Math.round(currentProgress)}%
+          </div>
+        )}
+        
+        {/* Cancel button for mobile/always visible */}
+        {showCancelButton && onCancel && !isHovered && (
+          <button
+            onClick={(e) => {
+              console.log('🛑 ProgressBar cancel button (text - not hovered) clicked');
+              e.stopPropagation();
+              onCancel();
+            }}
+            className="ml-auto px-2 py-0.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
+            title="Cancel operation"
+          >
+            Cancel
+          </button>
+        )}
+        
+        {/* Cancel button visible on hover */}
+        {showCancelButton && onCancel && isHovered && (
+          <button
+            onClick={(e) => {
+              console.log('🛑 ProgressBar cancel button (text - hovered) clicked');
+              e.stopPropagation();
+              onCancel();
+            }}
+            className="ml-auto px-2 py-0.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-all duration-200"
+            title="Cancel operation"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
       
       {/* Animated dots for extra visual appeal */}
       {animated && isActive && (

@@ -537,6 +537,8 @@ const Favorites: React.FC = () => {
           correctAnswer={favorites[selectedFavoriteIndex].correctAnswer}
           userAnswer="" // No user answer for favorites
           originalExplanation={favorites[selectedFavoriteIndex].explanation}
+          questionType={favorites[selectedFavoriteIndex].type}
+          options={favorites[selectedFavoriteIndex].options}
         />
       )}
     </div>

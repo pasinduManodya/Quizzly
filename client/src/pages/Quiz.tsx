@@ -343,22 +343,33 @@ const Quiz: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{document.title}</h1>
-              <p className="text-gray-600">Answered {answeredCount} of {document.questions.length} questions</p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 sm:py-4 lg:py-6 gap-3 sm:gap-4">
+            {/* Title Section */}
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">{document.title}</h1>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                Answered {answeredCount} of {document.questions.length} questions
+              </p>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Timer and Button Section - Side by side on all screens */}
+            <div className="flex items-center justify-center sm:justify-end gap-2 sm:gap-3 flex-shrink-0">
+              {/* Timer */}
               <Stopwatch 
                 onTimeUpdate={setQuizDuration}
-                className="mr-4"
               />
+              
+              {/* Back Button */}
               <button
                 onClick={() => navigate('/dashboard')}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
+                className="flex items-center justify-center space-x-1.5 sm:space-x-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
               >
-                Back to Dashboard
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Back</span>
               </button>
             </div>
           </div>
@@ -540,19 +551,11 @@ const Quiz: React.FC = () => {
                     return (
                       <>
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-4">
-                            <span className="text-sm font-medium text-gray-700">Your Answer:</span>
-                            <span className={`text-sm px-3 py-1 rounded ${
-                              isCorrect
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
+                          <div className="flex items-center space-x-3">
+                            <span className={`text-sm font-semibold px-4 py-2 rounded-lg ${
+                              isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {userAnswer}
-                            </span>
-                            <span className={`text-xs font-medium px-2 py-1 rounded ${
-                              isCorrect ? 'bg-green-200 text-green-900' : 'bg-red-200 text-red-900'
-                            }`}>
-                              {isCorrect ? 'Correct' : 'Incorrect'}
+                              {isCorrect ? '✓ Correct' : '✗ Incorrect'}
                             </span>
                           </div>
                           <button
@@ -760,6 +763,8 @@ const Quiz: React.FC = () => {
           correctAnswer={document.questions[selectedQuestionIndex].correctAnswer}
           userAnswer={answers[selectedQuestionIndex] || ''}
           originalExplanation={document.questions[selectedQuestionIndex].explanation}
+          questionType={document.questions[selectedQuestionIndex].type}
+          options={document.questions[selectedQuestionIndex].options}
         />
       )}
 

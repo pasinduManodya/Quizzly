@@ -29,6 +29,8 @@ class AIService {
   }
 
   async callAI(prompt) {
+    const APIRotationManager = require('../utils/apiRotation');
+    
     try {
       console.log(`🤖 Calling AI service: ${this.config.provider} - ${this.config.model}`);
       console.log(`📝 Prompt length: ${prompt.length} characters`);
@@ -36,33 +38,56 @@ class AIService {
       let result;
       let tokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
       
-      switch (this.config.provider) {
-        case 'gemini':
-          result = await this.callGemini(prompt);
-          tokenUsage = this.estimateGeminiTokens(prompt, result);
-          break;
-        case 'openai':
-          result = await this.callOpenAI(prompt);
-          tokenUsage = this.estimateOpenAITokens(prompt, result);
-          break;
-        case 'claude':
-          result = await this.callClaude(prompt);
-          tokenUsage = this.estimateClaudeTokens(prompt, result);
-          break;
-        case 'custom':
-          result = await this.callCustom(prompt);
-          tokenUsage = this.estimateCustomTokens(prompt, result);
-          break;
-        default:
-          throw new Error(`Unsupported AI provider: ${this.config.provider}`);
+      try {
+        switch (this.config.provider) {
+          case 'gemini':
+            result = await this.callGemini(prompt);
+            tokenUsage = this.estimateGeminiTokens(prompt, result);
+            break;
+          case 'openai':
+            result = await this.callOpenAI(prompt);
+            tokenUsage = this.estimateOpenAITokens(prompt, result);
+            break;
+          case 'claude':
+            result = await this.callClaude(prompt);
+            tokenUsage = this.estimateClaudeTokens(prompt, result);
+            break;
+          case 'custom':
+            result = await this.callCustom(prompt);
+            tokenUsage = this.estimateCustomTokens(prompt, result);
+            break;
+          default:
+            throw new Error(`Unsupported AI provider: ${this.config.provider}`);
+        }
+        
+        // Record successful call
+        await APIRotationManager.recordSuccess(this.config._id);
+        console.log(`📊 Token usage: ${tokenUsage.totalTokens} tokens (${tokenUsage.promptTokens} prompt + ${tokenUsage.completionTokens} completion)`);
+        
+        return {
+          response: result,
+          tokenUsage: tokenUsage
+        };
+      } catch (error) {
+        // Check if this is a credits exhausted error
+        if (APIRotationManager.isCreditsExhaustedError(error)) {
+          console.warn(`⚠️  Credits exhausted for ${this.config.provider}. Marking as exhausted...`);
+          await APIRotationManager.markAsExhausted(this.config._id, error.message);
+          
+          // Try to get next available config and retry
+          const nextConfig = await APIRotationManager.getNextAvailableConfig();
+          if (nextConfig._id.toString() !== this.config._id.toString()) {
+            console.log(`🔄 Retrying with next API: ${nextConfig.provider} - ${nextConfig.model}`);
+            const nextService = new AIService(nextConfig);
+            return await nextService.callAI(prompt);
+          }
+        } else {
+          // Record failure for non-exhaustion errors
+          await APIRotationManager.recordFailure(this.config._id, error.message);
+        }
+        
+        throw error;
       }
-      
-      console.log(`📊 Token usage: ${tokenUsage.totalTokens} tokens (${tokenUsage.promptTokens} prompt + ${tokenUsage.completionTokens} completion)`);
-      
-      return {
-        response: result,
-        tokenUsage: tokenUsage
-      };
     } catch (error) {
       console.error(`❌ AI service call failed for ${this.config.provider}:`, error.message);
       console.error(`❌ Error details:`, error);
@@ -254,19 +279,49 @@ Return only the JSON, no additional text.`;
   }
 
   buildExplanationPrompt(question, answer, context) {
-    return `You are an expert tutor. Provide a detailed explanation for this quiz question.
+    return `You are an expert educational tutor providing comprehensive, formal, and well-structured explanations for quiz questions.
 
-Question: ${question}
-Correct Answer: ${answer}
-Context: ${context}
+**Question:** ${question}
+**Correct Answer:** ${answer}
+**Original Explanation:** ${context}
 
-Please provide:
-1. Why the correct answer is right
-2. Why other options are wrong (if applicable)
-3. Additional context or examples to help understanding
-4. Key concepts related to this question
+**Instructions:**
+Create an enhanced explanation that is formal, professional, and easy to read. Use proper markdown formatting with clear sections and structure.
 
-Format your response in a clear, educational manner.`;
+**Required Format:**
+
+### Why the correct answer is right:
+[Provide a detailed, formal explanation of why this answer is correct. Use professional language and be thorough.]
+
+### Why other options are wrong:
+[If this is a multiple choice question, explain why each incorrect option is wrong. Be specific and educational.]
+
+### Key concepts and principles involved:
+[List and explain the fundamental concepts, theories, or principles that are relevant to this question. Use bullet points for clarity:]
+- **Concept 1**: Explanation
+- **Concept 2**: Explanation
+- **Concept 3**: Explanation
+
+### Real-world applications or examples:
+[Provide practical examples or real-world scenarios where this knowledge applies. Make it relatable and memorable.]
+
+### Additional insights:
+[Include any additional information, tips, or insights that would help deepen understanding of this topic.]
+
+### Common misconceptions:
+[If applicable, address common mistakes or misconceptions students might have about this topic.]
+
+**Formatting Guidelines:**
+- Use markdown headers (###) for main sections
+- Use **bold** for emphasis on important terms
+- Use bullet points (-) for lists
+- Use numbered lists (1., 2., 3.) for sequential steps
+- Keep paragraphs concise and focused
+- Use professional, formal language
+- Make it educational and comprehensive
+- Ensure the explanation is easy to scan and read
+
+Provide a complete, well-formatted response that helps students truly understand the concept.`;
   }
 
   async testConfiguration(config) {
@@ -328,6 +383,35 @@ Format your response in a clear, educational manner.`;
       totalTokens: promptTokens + completionTokens
     };
   }
+
+  // Test method to verify API connectivity
+  async test() {
+    try {
+      const testPrompt = "Test connection - please respond with 'OK' if you can read this message.";
+      console.log(`🔍 Testing ${this.config.provider} - ${this.config.model}...`);
+      
+      const result = await this.callAI(testPrompt);
+      
+      return {
+        success: true,
+        message: '✅ API test successful',
+        response: result.response
+      };
+    } catch (error) {
+      console.error('Test error:', error);
+      return {
+        success: false,
+        message: `❌ Test failed: ${error.message}`,
+        error: error.message,
+        details: {
+          provider: this.config.provider,
+          model: this.config.model,
+          statusCode: error.response?.status,
+          statusText: error.response?.statusText
+        }
+      };
+    }
+  }
 }
 
 // Factory function to create AI service instance
@@ -353,10 +437,60 @@ const createAIService = async () => {
   }
 };
 
+// Add test method to AIService class
+AIService.prototype.test = async function() {
+  try {
+    const testPrompt = "Test connection - please respond with 'OK' if you can read this message.";
+    console.log(`🔍 Testing ${this.config.provider} - ${this.config.model}...`);
+    
+    const result = await this.callAI(testPrompt);
+    
+    return {
+      success: true,
+      message: '✅ API test successful',
+      response: result.response
+    };
+    } catch (error) {
+      console.error('Test error:', error);
+      throw error; // Re-throw to be handled by the caller
+    }
+  }
+
 // Test function for admin
 const testAIConfiguration = async (config) => {
-  const service = new AIService(config);
-  return await service.testConfiguration(config);
+  try {
+    const service = new AIService(config);
+    const result = await service.test();
+    
+    // If test was successful, just return the result
+    if (result.success) {
+      return result;
+    }
+    
+    // If test failed, include more details
+    return {
+      success: false,
+      message: result.message || 'API test failed',
+      error: result.error,
+      details: result.details || {
+        provider: config.provider,
+        model: config.model,
+        timestamp: new Date().toISOString()
+      }
+    };
+  } catch (error) {
+    console.error('Error in testAIConfiguration:', error);
+    return {
+      success: false,
+      message: `Test failed: ${error.message}`,
+      error: error.message,
+      details: {
+        provider: config?.provider,
+        model: config?.model,
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
 };
 
 module.exports = {

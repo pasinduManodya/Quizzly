@@ -867,20 +867,73 @@ async function generateSummary(text) {
     const aiService = await createAIService();
     console.log('✅ AI service initialized successfully');
     
-    const prompt = `Summarize the following study material into a clear, structured summary with rich formatting.
-Focus on key concepts, definitions, formulas (if any), and main takeaways.
+    const prompt = `You are an expert educational content writer specializing in creating professional, well-structured study summaries.
 
-FORMATTING REQUIREMENTS:
-- Use **bold** for main topics and key concepts
-- Use *italics* for important definitions and emphasis
-- Use ### for section headers
-- Use bullet points (-) for lists and key points
-- Use numbered lists (1.) for step-by-step processes
-- Use > for important quotes or key insights
+Your task is to create a comprehensive, formal, and easy-to-read summary of the following study material.
+
+**REQUIRED STRUCTURE:**
+
+### Overview
+[Provide a brief introduction to the topic and what the material covers]
+
+### Key Concepts
+[List and explain the main concepts, theories, or principles. Use bullet points with bold headings:]
+- **Concept Name**: Clear, concise explanation
+- **Concept Name**: Clear, concise explanation
+
+### Important Definitions
+[Define key terms and terminology used in the material:]
+- **Term**: Professional definition with context
+- **Term**: Professional definition with context
+
+### Main Points
+[Organize the core content into logical sections with clear headers:]
+
+#### Topic 1
+- Key point with detailed explanation
+- Supporting information
+- Relevant examples
+
+#### Topic 2
+- Key point with detailed explanation
+- Supporting information
+- Relevant examples
+
+### Formulas and Equations
+[If applicable, list important formulas with explanations:]
+- \`Formula\`: Explanation of what it represents and when to use it
+
+### Practical Applications
+[Describe how this knowledge applies in real-world scenarios]
+
+### Summary
+[Provide a concise recap of the most important takeaways]
+
+**FORMATTING GUIDELINES:**
+- Use ### for main section headers
+- Use #### for subsection headers
+- Use **bold** for key terms, concepts, and emphasis
+- Use *italics* for definitions and important notes
+- Use bullet points (-) for lists
+- Use numbered lists (1., 2., 3.) for sequential steps or processes
+- Use > for important quotes, warnings, or key insights
 - Use \`code formatting\` for formulas, equations, or technical terms
-- Organize result.response with clear hierarchy and spacing
+- Keep paragraphs concise and focused
+- Use professional, formal language
+- Ensure proper spacing between sections
+- Make it scannable and easy to read
 
-TEXT:\n${text.substring(0, 12000)}`;
+**CONTENT QUALITY:**
+- Be comprehensive yet concise
+- Use clear, professional language
+- Maintain logical flow and organization
+- Include all important information
+- Make it educational and informative
+
+Study Material:
+${text.substring(0, 12000)}
+
+Provide a complete, well-formatted, professional summary following the structure above.`;
     
     console.log('📝 Calling AI service for summary...');
     const result = await aiService.callAI(prompt);
@@ -1211,31 +1264,79 @@ router.post('/:id/simplified-summary', auth, tokenUsageMiddleware(1500), async (
 
     const aiService = await createAIService();
 
-    const prompt = `You are an expert educator who specializes in making complex medical and academic result.response accessible to students. 
+    const prompt = `You are an expert educational content writer who specializes in making complex academic and technical content accessible to all learners.
 
-Your task is to create a SIMPLIFIED version of the following document result.response. The simplified version should:
+Your task is to create a SIMPLIFIED, professional, and easy-to-read version of the following document.
 
-1. **Replace ALL complex words** - Every hard, rough, or complex medical/academic term should be replaced with simple, easy-to-read alternatives
-2. **Make it child-friendly** - The result.response should be easy to read and understand, even by a child
-3. **Keep all information intact** - Don't remove any important information, just make it simpler
-4. **Prioritize simplicity and clarity** - Focus on easy comprehension over length
-5. **Add explanations** - Explain concepts that might be confusing
-6. **Use analogies and examples** - Help students understand through relatable comparisons
-7. **Break down complex ideas** - Split complicated topics into smaller, digestible parts
-8. **Use conversational tone** - Write as if explaining to a friend who's learning
-9. **Create a comprehensive summary** - Summarize the entire document result.response in simplified terms
+**REQUIRED STRUCTURE:**
 
-IMPORTANT: 
-- The summary can be as long as needed, but focus on easy comprehension
-- Replace EVERY complex word with simpler alternatives
-- Make it so simple that even a child could understand
-- Keep all the original information but make it much easier to read
-- Create a complete summary of the document result.response
+### Introduction
+[Provide a simple, clear introduction to the topic in plain language]
+
+### Main Topics (Simplified)
+[Break down the content into clear sections with simple explanations:]
+
+#### Topic 1: [Simple Title]
+**What it means:** [Explain in simple, everyday language]
+
+**Key points:**
+- [Simple explanation of first point]
+- [Simple explanation of second point]
+- [Simple explanation of third point]
+
+**Example:** [Provide a relatable, real-world example]
+
+#### Topic 2: [Simple Title]
+**What it means:** [Explain in simple, everyday language]
+
+**Key points:**
+- [Simple explanation of first point]
+- [Simple explanation of second point]
+
+**Example:** [Provide a relatable, real-world example]
+
+### Important Terms (In Simple Words)
+[Define key terms using simple language:]
+- **Complex Term** → Simple explanation in everyday words
+- **Complex Term** → Simple explanation in everyday words
+
+### How This Applies to Real Life
+[Explain practical applications using simple examples]
+
+### Quick Summary
+[Provide a brief recap in simple, clear language]
+
+**SIMPLIFICATION GUIDELINES:**
+1. **Replace ALL complex words** with simple, everyday alternatives
+2. **Use short sentences** - Break long, complicated sentences into shorter ones
+3. **Add explanations** - Explain concepts that might be confusing
+4. **Use analogies and examples** - Compare to familiar, everyday things
+5. **Break down complex ideas** - Split into smaller, easy-to-understand parts
+6. **Use conversational tone** - Write as if explaining to a friend
+7. **Keep all information** - Don't remove important content, just make it simpler
+8. **Make it accessible** - Anyone should be able to understand it
+
+**FORMATTING GUIDELINES:**
+- Use ### for main sections
+- Use #### for subsections
+- Use **bold** for important terms and concepts
+- Use bullet points (-) for lists
+- Use simple, clear language throughout
+- Keep paragraphs short and focused
+- Add examples and analogies
+- Use proper spacing for readability
+
+**QUALITY STANDARDS:**
+- Professional yet accessible
+- Comprehensive but simple
+- Well-organized and structured
+- Easy to read and understand
+- Maintains all important information
 
 Document Content:
 ${document.extractedText}
 
-Please provide a simplified summary that replaces all complex words with simple alternatives and makes the result.response easy to understand:`;
+Provide a complete, well-formatted, simplified summary that anyone can understand.`;
 
     try {
       const result = await aiService.callAI(prompt);
@@ -1313,31 +1414,70 @@ router.post('/:id/shorter-summary', auth, tokenUsageMiddleware(1200), async (req
         break;
     }
 
-    const prompt = `You are an expert educator who specializes in creating concise, focused summaries for students.
+    const prompt = `You are an expert educational content writer who specializes in creating concise, professional, and well-structured summaries.
 
-Your task is to create a SHORTER summary of the following document result.response. The shorter version should:
+Your task is to create a SHORTER, more focused version of the following document while maintaining professional quality and readability.
 
-1. **Preserve main ideas and key points** - Keep all essential information
-2. **Reduce unnecessary details** - Remove redundant or less important information
-3. **Maintain logical structure** - Keep the flow and organization clear
-4. **Use precise language** - Be concise but clear
-5. **Focus on essentials** - Prioritize the most important points
-6. **Preserve formatting** - Keep headers, bullets, and structure when possible
-7. **Create a comprehensive summary** - Summarize the entire document result.response
+**LENGTH REQUIREMENT:** ${lengthInstruction}
 
-Length requirement: ${lengthInstruction}
+**REQUIRED STRUCTURE:**
 
-IMPORTANT: 
-- Preserve the main ideas and key points
-- Reduce unnecessary details but keep essential information
-- Make it exactly the requested length percentage
-- Maintain readability and clarity
-- Create a complete summary of the document result.response
+### Overview
+[Brief introduction covering the main topic]
+
+### Essential Concepts
+[List only the most important concepts with concise explanations:]
+- **Key Concept**: Brief, clear explanation
+- **Key Concept**: Brief, clear explanation
+
+### Core Points
+[Organize the most important information into focused sections:]
+
+#### Main Topic 1
+- Essential point with brief explanation
+- Critical information only
+
+#### Main Topic 2
+- Essential point with brief explanation
+- Critical information only
+
+### Key Takeaways
+[Summarize the most important points in a concise list:]
+1. [First critical takeaway]
+2. [Second critical takeaway]
+3. [Third critical takeaway]
+
+**CONDENSATION GUIDELINES:**
+1. **Preserve main ideas** - Keep all essential information and key concepts
+2. **Remove redundancy** - Eliminate repetitive or less important details
+3. **Use precise language** - Be concise but maintain clarity
+4. **Focus on essentials** - Prioritize the most critical points
+5. **Maintain structure** - Keep logical flow and organization
+6. **Be comprehensive** - Cover all major topics, just more briefly
+7. **Stay professional** - Maintain formal, educational tone
+
+**FORMATTING GUIDELINES:**
+- Use ### for main section headers
+- Use #### for subsection headers
+- Use **bold** for key terms and important concepts
+- Use bullet points (-) for lists
+- Use numbered lists (1., 2., 3.) for sequential information
+- Keep sentences short and focused
+- Use proper spacing between sections
+- Maintain professional language
+
+**QUALITY STANDARDS:**
+- Professional and formal tone
+- Well-organized and structured
+- Easy to scan and read
+- Comprehensive yet concise
+- Maintains all critical information
+- Exactly matches the requested length
 
 Document Content:
 ${document.extractedText}
 
-Please provide a shorter summary that maintains the essential information while being more concise:`;
+Provide a complete, well-formatted, shorter summary that maintains essential information while being more concise.`;
 
     try {
       const result = await aiService.callAI(prompt);

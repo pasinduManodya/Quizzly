@@ -57,26 +57,44 @@ const Stopwatch: React.FC<StopwatchProps> = ({ onTimeUpdate, className = '' }) =
   };
 
   return (
-    <div className={`flex items-center space-x-2 ${className}`}>
-      <div className="text-lg font-mono font-semibold text-gray-900">
-        {formatTime(time)}
-      </div>
-      <div className="flex space-x-1">
+    <div className={`inline-flex items-center ${className}`}>
+      {/* Professional Minimal Timer */}
+      <div className="inline-flex items-center rounded-md border border-gray-200 bg-white text-gray-900 shadow-sm px-2.5 py-1.5 sm:px-3 sm:py-1.5">
+        {/* Clock Icon */}
+        <svg className="w-4 h-4 sm:w-4 sm:h-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+
+        {/* Time Display */}
+        <span className="font-mono text-sm sm:text-base font-medium tabular-nums tracking-normal">
+          {formatTime(time)}
+        </span>
+
+        {/* Divider */}
+        <span className="mx-2 h-4 w-px bg-gray-200 hidden sm:inline-block" aria-hidden="true" />
+
+        {/* Pause/Resume Button */}
         {isPaused ? (
           <button
             onClick={resume}
-            className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded"
+            className="ml-2 inline-flex items-center justify-center rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 h-7 w-7 sm:h-8 sm:w-8"
             title="Resume"
+            aria-label="Resume timer"
           >
-            ▶
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
           </button>
         ) : (
           <button
             onClick={pause}
-            className="px-2 py-1 text-xs bg-yellow-600 hover:bg-yellow-700 text-white rounded"
+            className="ml-2 inline-flex items-center justify-center rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 h-7 w-7 sm:h-8 sm:w-8"
             title="Pause"
+            aria-label="Pause timer"
           >
-            ⏸
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+            </svg>
           </button>
         )}
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, favoritesAPI } from '../services/api';
 import SummaryModal from '../components/SummaryModal';
@@ -52,6 +52,8 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const uploadXHRRef = useRef<XMLHttpRequest | null>(null);
   const uploadProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const uploadCompleteIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,6 +79,8 @@ const Dashboard: React.FC = () => {
   }, [summaryText]);
   const [generatingSummary, setGeneratingSummary] = useState<Record<string, boolean>>({});
   const [summaryProgress, setSummaryProgress] = useState<Record<string, number>>({});
+  const summaryAbortControllersRef = useRef<Record<string, AbortController>>({});
+  const summaryProgressIntervalsRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Start Quiz setup modal state
   const [showSetup, setShowSetup] = useState(false);
@@ -117,6 +121,27 @@ const Dashboard: React.FC = () => {
       }
     };
   }, []); // Empty deps - only run on mount
+
+  // Handle browser back button
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      event.preventDefault();
+      // Push the current state back to prevent immediate navigation
+      window.history.pushState(null, '', window.location.pathname);
+      // Show confirmation dialog
+      setShowLogoutConfirm(true);
+    };
+
+    // Push initial state to enable back button detection
+    window.history.pushState(null, '', window.location.pathname);
+    
+    // Listen for back button
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   const fetchDocuments = async (preserveOnError = false) => {
     const callId = `fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -557,6 +582,46 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
+    navigate('/');
+  };
+
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
+  };
+
+  const handleCancelSummary = (docId: string) => {
+    console.log('🛑 Cancel Summary clicked for docId:', docId);
+    console.log('🛑 Abort controllers:', Object.keys(summaryAbortControllersRef.current));
+    console.log('🛑 Progress intervals:', Object.keys(summaryProgressIntervalsRef.current));
+    
+    // Abort the fetch request
+    if (summaryAbortControllersRef.current[docId]) {
+      console.log('🛑 Aborting fetch request');
+      summaryAbortControllersRef.current[docId].abort();
+      delete summaryAbortControllersRef.current[docId];
+    } else {
+      console.log('🛑 No abort controller found for docId:', docId);
+    }
+
+    // Clear the progress interval
+    if (summaryProgressIntervalsRef.current[docId]) {
+      console.log('🛑 Clearing progress interval');
+      clearInterval(summaryProgressIntervalsRef.current[docId]);
+      delete summaryProgressIntervalsRef.current[docId];
+    } else {
+      console.log('🛑 No progress interval found for docId:', docId);
+    }
+
+    // Reset UI state
+    console.log('🛑 Resetting UI state');
+    setGeneratingSummary(prev => ({ ...prev, [docId]: false }));
+    setSummaryProgress(prev => ({ ...prev, [docId]: 0 }));
+    setError('Summary generation cancelled');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -734,6 +799,8 @@ const Dashboard: React.FC = () => {
                       className="w-full"
                       showPercentage={false}
                       animated={true}
+                      showCancelButton={true}
+                      onCancel={handleCancelUpload}
                     />
                     <p className="mt-2 text-xs text-gray-500 truncate">{uploadFileName}</p>
                     {uploadProgress >= 95 && uploadProgress < 100 && (
@@ -783,54 +850,72 @@ const Dashboard: React.FC = () => {
               >
                         Start Quiz
                       </button>
-                      <button
-                        onClick={async () => {
-                          if (generatingSummary[doc._id]) return;
-                          
-                          try {
-                            setGeneratingSummary(prev => ({ ...prev, [doc._id]: true }));
-                            setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
+                      <div className="relative flex-1">
+                        <button
+                          onClick={async () => {
+                            if (generatingSummary[doc._id]) return;
                             
-                            // Simulate progress updates during API call
-                            const progressInterval = setInterval(() => {
-                              setSummaryProgress(prev => {
-                                const current = prev[doc._id] || 0;
-                                if (current >= 90) return prev; // Stop at 90% until API completes
-                                return { ...prev, [doc._id]: current + Math.random() * 10 };
-                              });
-                            }, 200);
-                            
-                            const res = await documentsAPI.summarize(doc._id);
-                            
-                            // Complete the progress bar
-                            clearInterval(progressInterval);
-                            setSummaryProgress(prev => ({ ...prev, [doc._id]: 100 }));
-                            
-                            // Small delay to show 100% completion
-                            setTimeout(() => {
-                              setSelectedDocumentId(doc._id);
-                              setSummaryTitle(doc.title);
-                              setSummaryText(res.data.summary);
-                              setSummaryOpen(true);
+                            try {
+                              setGeneratingSummary(prev => ({ ...prev, [doc._id]: true }));
+                              setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
+                              
+                              // Create abort controller for this summary generation
+                              const abortController = new AbortController();
+                              summaryAbortControllersRef.current[doc._id] = abortController;
+                              
+                              // Simulate progress updates during API call
+                              const progressInterval = setInterval(() => {
+                                setSummaryProgress(prev => {
+                                  const current = prev[doc._id] || 0;
+                                  if (current >= 90) return prev; // Stop at 90% until API completes
+                                  return { ...prev, [doc._id]: current + Math.random() * 10 };
+                                });
+                              }, 200);
+                              
+                              summaryProgressIntervalsRef.current[doc._id] = progressInterval;
+                              
+                              const res = await documentsAPI.summarize(doc._id, { signal: abortController.signal });
+                              
+                              // Complete the progress bar
+                              clearInterval(progressInterval);
+                              delete summaryProgressIntervalsRef.current[doc._id];
+                              setSummaryProgress(prev => ({ ...prev, [doc._id]: 100 }));
+                              
+                              // Small delay to show 100% completion
+                              setTimeout(() => {
+                                setSelectedDocumentId(doc._id);
+                                setSummaryTitle(doc.title);
+                                setSummaryText(res.data.summary);
+                                setSummaryOpen(true);
+                                setGeneratingSummary(prev => ({ ...prev, [doc._id]: false }));
+                                setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
+                                delete summaryAbortControllersRef.current[doc._id];
+                              }, 500);
+                              
+                            } catch (e: any) {
+                              // Don't show error for aborted requests
+                              if (e.name !== 'AbortError') {
+                                alert(e?.response?.data?.message || 'Failed to generate summary');
+                              }
                               setGeneratingSummary(prev => ({ ...prev, [doc._id]: false }));
                               setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
-                            }, 500);
-                            
-                          } catch (e: any) {
-                            alert(e?.response?.data?.message || 'Failed to generate summary');
-                            setGeneratingSummary(prev => ({ ...prev, [doc._id]: false }));
-                            setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
-                          }
-                        }}
-                        disabled={generatingSummary[doc._id]}
-                        className="btn-secondary text-sm font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
-                      >
-                        {generatingSummary[doc._id] ? (
-                          <div className="flex flex-col items-center space-y-2 w-full">
+                              delete summaryAbortControllersRef.current[doc._id];
+                            }
+                          }}
+                          disabled={generatingSummary[doc._id]}
+                          className="w-full btn-secondary text-sm font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                        >
+                          {generatingSummary[doc._id] ? (
                             <div className="flex items-center space-x-2">
                               <LoadingSpinner size="sm" color="blue" />
                               <span>Generating...</span>
                             </div>
+                          ) : (
+                            'Create Summary'
+                          )}
+                        </button>
+                        {generatingSummary[doc._id] && (
+                          <div className="mt-2 pointer-events-auto">
                             <ProgressBar 
                               isActive={true} 
                               progress={summaryProgress[doc._id] || 0}
@@ -838,12 +923,12 @@ const Dashboard: React.FC = () => {
                               className="w-full"
                               showPercentage={true}
                               animated={true}
+                              showCancelButton={true}
+                              onCancel={() => handleCancelSummary(doc._id)}
                             />
                           </div>
-                        ) : (
-                          'Create Summary'
                         )}
-                      </button>
+                      </div>
                       <button
                         onClick={() => handleDeleteDocument(doc._id)}
                 className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg shadow text-sm font-medium"
@@ -986,6 +1071,42 @@ const Dashboard: React.FC = () => {
           console.log('🔄 SummaryText state updated');
         }}
       />
+
+      {/* Logout Confirmation Dialog */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto bg-yellow-100 rounded-full mb-4">
+              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              Confirm Logout
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              {user?.isGuest 
+                ? "Are you sure you want to leave? All your uploaded documents and progress will be permanently deleted."
+                : "Are you sure you want to logout and return to the home page?"
+              }
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCancelLogout}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-xl transition-colors duration-200"
+              >
+                Stay
+              </button>
+              <button
+                onClick={handleConfirmLogout}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors duration-200"
+              >
+                {user?.isGuest ? "Leave & Delete" : "Logout"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

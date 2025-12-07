@@ -46,29 +46,15 @@ router.get('/ai-config', adminAuth, asyncHandler(async (req, res) => {
   });
 }));
 
-// Get all AI configurations
+// Get all AI configurations with rotation status
 router.get('/ai-configs', adminAuth, asyncHandler(async (req, res) => {
-  const configs = await AIConfig.find({}).sort({ createdAt: -1 });
-  
-  const safeConfigs = configs.map(config => ({
-    id: config._id,
-    provider: config.provider,
-    model: config.model,
-    baseUrl: config.baseUrl,
-    temperature: config.temperature,
-    isActive: config.isActive,
-    settings: config.settings,
-    lastTested: config.lastTested,
-    testStatus: config.testStatus,
-    testError: config.testError,
-    createdAt: config.createdAt,
-    updatedAt: config.updatedAt
-  }));
+  const APIRotationManager = require('../utils/apiRotation');
+  const configs = await APIRotationManager.getAllConfigs();
 
   res.json({
     success: true,
     data: {
-      configs: safeConfigs
+      configs: configs
     }
   });
 }));
@@ -87,34 +73,34 @@ router.post('/ai-config', adminAuth, asyncHandler(async (req, res) => {
     await AIConfig.updateMany({}, { isActive: false });
   }
 
-  // Check if config already exists
-  let config = await AIConfig.findOne({ provider, model });
+  // Always create a new config
+  const config = new AIConfig({
+    provider,
+    apiKey,
+    model,
+    baseUrl: baseUrl || '',
+    temperature: 0.5, // Fixed for study apps - always use optimal value
+    settings: settings || {},
+    isActive: isActive || false,
+    // Set default priority to 0 if not provided
+    priority: req.body.priority || 0,
+    // Initialize tracking fields
+    creditsExhausted: false,
+    successCount: 0,
+    failureCount: 0
+  });
   
-  if (config) {
-    // Update existing
-    config.apiKey = apiKey;
-    config.baseUrl = baseUrl || '';
-    config.temperature = 0.5; // Fixed for study apps
-    config.settings = settings || {};
-    config.isActive = isActive || false;
-    config.testStatus = 'not_tested';
-    config.testError = null;
-    await config.save();
-  } else {
-    // Create new
-    config = new AIConfig({
-      provider,
-      apiKey,
-      model,
-      baseUrl: baseUrl || '',
-      temperature: 0.5, // Fixed for study apps - always use optimal value
-      settings: settings || {},
-      isActive: isActive || false
-    });
-    await config.save();
+  await config.save();
+  
+  // If setting as active, deactivate others
+  if (isActive) {
+    await AIConfig.updateMany(
+      { _id: { $ne: config._id } },
+      { $set: { isActive: false } }
+    );
   }
 
-  logger.info(`Admin ${req.user.email} ${config.isNew ? 'created' : 'updated'} AI config`, {
+  logger.info(`Admin ${req.user.email} created AI config`, {
     adminId: req.user._id,
     provider: config.provider,
     model: config.model,
@@ -357,6 +343,133 @@ router.get('/ai-providers', adminAuth, asyncHandler(async (req, res) => {
     success: true,
     data: {
       providers
+    }
+  });
+}));
+
+// ============================================
+// API Rotation Management Endpoints
+// ============================================
+
+// Update API priority for rotation order
+router.put('/ai-config/:id/priority', adminAuth, asyncHandler(async (req, res) => {
+  const { priority } = req.body;
+  const APIRotationManager = require('../utils/apiRotation');
+
+  if (typeof priority !== 'number' || priority < 0) {
+    throw new ValidationError('Priority must be a non-negative number');
+  }
+
+  const config = await APIRotationManager.updatePriority(req.params.id, priority);
+
+  logger.info(`Admin ${req.user.email} updated API priority`, {
+    adminId: req.user._id,
+    configId: req.params.id,
+    priority: priority
+  });
+
+  res.json({
+    success: true,
+    message: 'API priority updated successfully',
+    data: {
+      config: {
+        id: config._id,
+        provider: config.provider,
+        model: config.model,
+        priority: config.priority
+      }
+    }
+  });
+}));
+
+// Mark API as exhausted (manual)
+router.post('/ai-config/:id/mark-exhausted', adminAuth, asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+  const APIRotationManager = require('../utils/apiRotation');
+
+  const config = await APIRotationManager.markAsExhausted(
+    req.params.id,
+    reason || 'Manually marked as exhausted by admin'
+  );
+
+  logger.info(`Admin ${req.user.email} marked API as exhausted`, {
+    adminId: req.user._id,
+    configId: req.params.id,
+    reason: reason
+  });
+
+  res.json({
+    success: true,
+    message: 'API marked as exhausted. System will use next available API.',
+    data: {
+      config: {
+        id: config._id,
+        provider: config.provider,
+        model: config.model,
+        creditsExhausted: config.creditsExhausted,
+        testStatus: config.testStatus
+      }
+    }
+  });
+}));
+
+// Restore an exhausted API (admin action)
+router.post('/ai-config/:id/restore', adminAuth, asyncHandler(async (req, res) => {
+  const APIRotationManager = require('../utils/apiRotation');
+
+  const config = await APIRotationManager.restoreConfig(req.params.id);
+
+  logger.info(`Admin ${req.user.email} restored API`, {
+    adminId: req.user._id,
+    configId: req.params.id
+  });
+
+  res.json({
+    success: true,
+    message: 'API restored successfully. Credits counter reset.',
+    data: {
+      config: {
+        id: config._id,
+        provider: config.provider,
+        model: config.model,
+        creditsExhausted: config.creditsExhausted,
+        failureCount: config.failureCount,
+        successCount: config.successCount
+      }
+    }
+  });
+}));
+
+// Get rotation status and statistics
+router.get('/ai-rotation-status', adminAuth, asyncHandler(async (req, res) => {
+  const APIRotationManager = require('../utils/apiRotation');
+  const configs = await APIRotationManager.getAllConfigs();
+
+  const activeConfig = configs.find(c => c.isActive);
+  const exhaustedConfigs = configs.filter(c => c.creditsExhausted);
+  const availableConfigs = configs.filter(c => !c.creditsExhausted);
+
+  res.json({
+    success: true,
+    data: {
+      rotationStatus: {
+        totalConfigs: configs.length,
+        activeConfig: activeConfig ? {
+          id: activeConfig.id,
+          provider: activeConfig.provider,
+          model: activeConfig.model,
+          priority: activeConfig.priority
+        } : null,
+        availableConfigs: availableConfigs.length,
+        exhaustedConfigs: exhaustedConfigs.length,
+        exhaustedList: exhaustedConfigs.map(c => ({
+          id: c.id,
+          provider: c.provider,
+          model: c.model,
+          exhaustedAt: c.creditsExhaustedAt
+        }))
+      },
+      allConfigs: configs
     }
   });
 }));

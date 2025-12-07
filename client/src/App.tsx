@@ -15,6 +15,7 @@ import AdminProtectedRoute from './components/AdminProtectedRoute';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Pricing from './pages/Pricing';
+import Privacy from './pages/Privacy';
 import Landing from './pages/Landing';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -35,6 +36,7 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route 
               path="/admin" 
               element={

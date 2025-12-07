@@ -1,10 +1,24 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import PWAInstallButton from '../components/PWAInstallButton';
 import Logo from '../components/Logo';
+import { useAuth } from '../contexts/AuthContext';
 
 const Landing: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleGuestLogin = async () => {
+    try {
+      await login('', '', true);
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Guest login failed:', error.message);
+      // Fallback to login page if guest login fails
+      navigate('/login');
+    }
+  };
 
   React.useEffect(() => {
     // Cleanup: just log that we're on landing page
@@ -117,6 +131,7 @@ const Landing: React.FC = () => {
             <Link to="/about" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">About</Link>
             <Link to="/pricing" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Pricing</Link>
             <Link to="/contact" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Contact</Link>
+            <Link to="/privacy" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Privacy & Policy</Link>
             <Link to="/login" className="bg-gradient-to-r from-teal-500 to-violet-600 text-white px-6 py-2 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 hover:scale-105">
               Get Started
             </Link>
@@ -215,12 +230,12 @@ const Landing: React.FC = () => {
               <PWAInstallButton />
             </div>
             {/* Second Row: Continue as Guest */}
-            <Link 
-              to="/login" 
-              className="text-gray-600 text-sm hover:text-teal-600 transition-colors underline underline-offset-4"
+            <button 
+              onClick={handleGuestLogin}
+              className="text-gray-600 text-sm hover:text-teal-600 transition-colors underline underline-offset-4 cursor-pointer"
             >
               👤 Continue as Guest
-            </Link>
+            </button>
           </div>
           
           <div className="animate-fade-in-up text-sm text-gray-500 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 inline-block">
@@ -362,12 +377,12 @@ const Landing: React.FC = () => {
               >
                 🎯 Get Started Free
               </Link>
-              <Link 
-                to="/login" 
-                className="bg-white/20 backdrop-blur text-white px-8 py-4 rounded-2xl font-bold text-lg border-2 border-white/30 hover:bg-white/30 transition-all duration-300 hover:scale-105"
+              <button 
+                onClick={handleGuestLogin}
+                className="bg-white/20 backdrop-blur text-white px-8 py-4 rounded-2xl font-bold text-lg border-2 border-white/30 hover:bg-white/30 transition-all duration-300 hover:scale-105 cursor-pointer"
               >
                 👤 Try as Guest
-              </Link>
+              </button>
               <div className="mt-4 sm:mt-0">
                 <PWAInstallButton />
               </div>
@@ -389,8 +404,7 @@ const Landing: React.FC = () => {
               <Link to="/about" className="text-gray-300 hover:text-white transition-colors duration-200">About</Link>
               <Link to="/pricing" className="text-gray-300 hover:text-white transition-colors duration-200">Pricing</Link>
               <Link to="/contact" className="text-gray-300 hover:text-white transition-colors duration-200">Contact</Link>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200">Privacy</a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200">Terms</a>
+              <Link to="/privacy" className="text-gray-300 hover:text-white transition-colors duration-200">Privacy & Policy</Link>
             </div>
             
             <div className="border-t border-gray-700 pt-6">

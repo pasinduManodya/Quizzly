@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AIConfiguration from '../components/AIConfiguration';
+import APIRotationManager from '../components/APIRotationManager';
 import UsersTab from '../components/UsersTab';
 import TokenLimitsTab from '../components/TokenLimitsTab';
 import AnalyticsOverview from '../components/AnalyticsOverview';
@@ -105,6 +106,7 @@ const AdminDashboard: React.FC = () => {
             {[
               { id: 'overview', name: 'Analytics Overview', icon: '📊' },
               { id: 'ai-config', name: 'AI Configuration', icon: '🤖' },
+              { id: 'api-rotation', name: 'API Rotation', icon: '🔄' },
               { id: 'users', name: 'Users', icon: '👥' },
               { id: 'token-limits', name: 'Token Limits', icon: '🎯' }
             ].map((tab) => (
@@ -129,6 +131,8 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'overview' && <AnalyticsOverview />}
 
           {activeTab === 'ai-config' && <AIConfiguration />}
+
+          {activeTab === 'api-rotation' && <APIRotationManager />}
 
           {activeTab === 'users' && <UsersTab />}
 
