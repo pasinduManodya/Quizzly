@@ -18,6 +18,14 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  condensedText: {
+    type: String,
+    default: null
+  },
+  condensedTextLength: {
+    type: Number,
+    default: 0
+  },
   questions: [{
     type: {
       type: String,
@@ -46,6 +54,18 @@ const documentSchema = new mongoose.Schema({
   uploadedAt: {
     type: Date,
     default: Date.now
+  },
+  summary: {
+    type: String,
+    default: null
+  },
+  simplifiedSummary: {
+    type: String,
+    default: null
+  },
+  shorterSummary: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
   }
 }, {
   timestamps: true

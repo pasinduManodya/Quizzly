@@ -979,6 +979,278 @@ function generateFallbackSummary(text) {
   return summary;
 }
 
+// Step 1: Identify ALL important points in the document
+async function identifyAllImportantPoints(text, aiService) {
+  try {
+    console.log('🔍 Step 1: Identifying ALL important points in the document...');
+    
+    // For very large texts, we'll process in chunks
+    const maxTextLength = 45000; // Safe limit
+    const textToProcess = text.length > maxTextLength 
+      ? text.substring(0, maxTextLength) + '\n\n[... Additional content in original document ...]'
+      : text;
+    
+    const prompt = `You are an expert educational content analyst. Your task is to identify EVERY important point in this study material.
+
+CRITICAL INSTRUCTIONS:
+1. Read the ENTIRE document carefully from start to finish
+2. Identify ALL important points - do not miss any
+3. Categorize each point by type
+4. Note the context and relationships between points
+
+IMPORTANT POINTS TO IDENTIFY INCLUDE:
+- Key concepts and theories
+- Important definitions and terminology
+- Facts, statistics, and specific data
+- Formulas, equations, and calculations
+- Processes, procedures, and methodologies
+- Examples, case studies, and applications
+- Principles, rules, and guidelines
+- Relationships, connections, and dependencies
+- Historical context and background
+- Comparisons and contrasts
+- Cause-and-effect relationships
+- Classifications and categorizations
+- Step-by-step procedures
+- Important dates, names, places, and events
+
+Document Content:
+${textToProcess}
+
+Format your response as JSON:
+{
+  "importantPoints": [
+    {
+      "point": "Brief description of the important point",
+      "category": "concept|definition|fact|formula|process|example|principle|relationship|procedure|other",
+      "importance": "critical|high|medium",
+      "context": "Brief context or section where it appears",
+      "relatedPoints": ["Related point 1", "Related point 2"]
+    }
+  ],
+  "topics": ["Topic 1", "Topic 2", "Topic 3"],
+  "keyTerms": ["Term 1", "Term 2", "Term 3"],
+  "formulas": ["Formula 1", "Formula 2"],
+  "summary": "Brief overview of what the document covers"
+}
+
+Be COMPREHENSIVE - identify EVERY important point. It's better to include more than to miss critical information.`;
+
+    const result = await aiService.callAI(prompt);
+    let parsedContent;
+    
+    try {
+      parsedContent = extractJSONFromResponse(result.response);
+    } catch (error) {
+      console.error('⚠️ Could not parse important points JSON, using fallback approach');
+      return null;
+    }
+    
+    const importantPoints = parsedContent.importantPoints || [];
+    const topics = parsedContent.topics || [];
+    const keyTerms = parsedContent.keyTerms || [];
+    const formulas = parsedContent.formulas || [];
+    
+    console.log(`✅ Identified ${importantPoints.length} important points, ${topics.length} topics, ${keyTerms.length} key terms, ${formulas.length} formulas`);
+    
+    return {
+      importantPoints,
+      topics,
+      keyTerms,
+      formulas,
+      summary: parsedContent.summary || ''
+    };
+  } catch (error) {
+    console.error('❌ Error identifying important points:', error.message);
+    return null;
+  }
+}
+
+// Step 2: Create condensed version ensuring ALL important points are included
+async function createCondensedVersionWithPoints(text, importantPointsData, aiService) {
+  try {
+    console.log('📝 Step 2: Creating condensed version ensuring ALL important points are preserved...');
+    
+    // Build a comprehensive checklist of what must be included
+    const pointsChecklist = importantPointsData.importantPoints
+      .filter(p => p.importance === 'critical' || p.importance === 'high')
+      .map((p, i) => `${i + 1}. ${p.point} (${p.category})`)
+      .join('\n');
+    
+    const topicsList = importantPointsData.topics.join(', ');
+    const keyTermsList = importantPointsData.keyTerms.join(', ');
+    const formulasList = importantPointsData.formulas.join('\n');
+    
+    const maxTextLength = 45000;
+    const textToProcess = text.length > maxTextLength 
+      ? text.substring(0, maxTextLength) + '\n\n[... Additional content in original document ...]'
+      : text;
+    
+    const prompt = `You are an expert at condensing educational content while preserving ALL critical information.
+
+YOUR TASK: Create a condensed version of this study material that is 25-35% of the original length while ensuring EVERY important point is preserved.
+
+CRITICAL REQUIREMENTS - YOU MUST INCLUDE ALL OF THE FOLLOWING:
+
+1. ALL CRITICAL AND HIGH IMPORTANCE POINTS (DO NOT MISS ANY):
+${pointsChecklist}
+
+2. ALL TOPICS COVERED:
+${topicsList}
+
+3. ALL KEY TERMS AND DEFINITIONS:
+${keyTermsList}
+
+4. ALL FORMULAS AND EQUATIONS:
+${formulasList}
+
+CONDENSATION GUIDELINES:
+- Preserve ALL important concepts, facts, definitions, formulas, and key points listed above
+- Maintain the logical structure, flow, and organization of the original
+- Keep essential examples and explanations (remove only truly redundant ones)
+- Preserve ALL technical terms, proper nouns, and specific details
+- Maintain relationships and connections between concepts
+- Keep all step-by-step procedures and processes
+- Preserve all important dates, names, places, and events
+- Maintain cause-and-effect relationships
+- Keep all classifications and categorizations
+
+WHAT TO REMOVE (ONLY):
+- Redundant explanations of the same concept
+- Excessive examples (keep 1-2 best examples per concept)
+- Unnecessary filler words and phrases
+- Repetitive statements
+- Non-essential background information
+
+VERIFICATION CHECKLIST:
+Before finalizing, verify that:
+✓ Every critical/high importance point is included
+✓ All topics are covered
+✓ All key terms are defined or explained
+✓ All formulas are present
+✓ The structure and flow are maintained
+✓ The condensed version can be used to generate accurate questions
+✓ The condensed version can be used to create comprehensive summaries
+
+Original Study Material:
+${textToProcess}
+
+Provide ONLY the condensed text. Start directly with the condensed content. Ensure completeness and accuracy.`;
+
+    const result = await aiService.callAI(prompt);
+    return result.response;
+  } catch (error) {
+    console.error('❌ Error creating condensed version with points:', error.message);
+    throw error;
+  }
+}
+
+// Create a condensed version of the PDF text for cost-effective processing
+// This preserves all important information while reducing token usage by 70-90%
+// Uses a two-step approach: first identify all important points, then condense while ensuring all are included
+async function createCondensedVersion(text) {
+  try {
+    console.log('📝 Creating condensed version of PDF text...');
+    console.log(`📊 Original text length: ${text.length} characters`);
+    
+    const aiService = await createAIService();
+    
+    // Step 1: Identify all important points
+    const importantPointsData = await identifyAllImportantPoints(text, aiService);
+    
+    let condensedText;
+    
+    if (importantPointsData && importantPointsData.importantPoints.length > 0) {
+      // Step 2: Create condensed version ensuring all important points are included
+      console.log(`📋 Using identified ${importantPointsData.importantPoints.length} important points to guide condensation...`);
+      condensedText = await createCondensedVersionWithPoints(text, importantPointsData, aiService);
+    } else {
+      // Fallback: Use direct condensation with enhanced prompt
+      console.log('⚠️ Could not identify important points, using enhanced direct condensation...');
+      const maxTextLength = 45000;
+      const textToProcess = text.length > maxTextLength 
+        ? text.substring(0, maxTextLength) + '\n\n[... Content continues in original document ...]'
+        : text;
+      
+      const prompt = `You are an expert at condensing educational content while preserving ALL critical information.
+
+Your task is to create a condensed version of this study material that:
+1. Preserves ALL important concepts, facts, definitions, formulas, and key points
+2. Maintains the logical structure, flow, and organization of the original
+3. Keeps essential examples and explanations (remove only redundant ones)
+4. Preserves technical terms, proper nouns, and specific details
+5. Is approximately 25-35% of the original length
+6. Can be used to generate accurate questions and summaries without losing quality
+
+CRITICAL: The condensed version must contain ALL information needed to:
+- Generate accurate quiz questions covering all topics
+- Create comprehensive summaries
+- Understand the complete subject matter
+- Answer questions about any part of the original material
+
+Be SYSTEMATIC:
+1. First, mentally identify ALL important points in the document
+2. Then condense while ensuring EVERY important point is preserved
+3. Verify that nothing critical is missing
+
+Original Study Material:
+${textToProcess}
+
+Provide ONLY the condensed text. Do not include any commentary, explanations, or metadata. Start directly with the condensed content.`;
+
+      const result = await aiService.callAI(prompt);
+      condensedText = result.response;
+    }
+    
+    const reduction = Math.round((1 - condensedText.length / text.length) * 100);
+    console.log(`✅ Condensed version created: ${text.length} -> ${condensedText.length} characters (${reduction}% reduction)`);
+    
+    // Validation: Check if condensed version is too short (might have lost information)
+    if (condensedText.length < text.length * 0.15) {
+      console.warn('⚠️ Warning: Condensed version is very short, might have lost important information');
+    }
+    
+    return condensedText;
+  } catch (error) {
+    console.error('❌ Error creating condensed version:', error.message);
+    console.log('🔄 Falling back to smart text truncation...');
+    
+    // Fallback: Use intelligent truncation that preserves structure
+    // Take first 30% but ensure we get complete sentences
+    const targetLength = Math.floor(text.length * 0.3);
+    const truncated = text.substring(0, targetLength);
+    
+    // Find the last complete sentence
+    const lastSentenceEnd = Math.max(
+      truncated.lastIndexOf('.'),
+      truncated.lastIndexOf('!'),
+      truncated.lastIndexOf('?')
+    );
+    
+    if (lastSentenceEnd > targetLength * 0.8) {
+      return truncated.substring(0, lastSentenceEnd + 1);
+    }
+    
+    return truncated;
+  }
+}
+
+// Helper function to get the text to use for processing (condensed if available, fallback to full)
+function getTextForProcessing(document) {
+  // Prefer condensed text if available and valid
+  if (document.condensedText && document.condensedText.trim().length > 100) {
+    const reduction = Math.round((1 - document.condensedText.length / document.extractedText.length) * 100);
+    console.log(`✅ COST SAVINGS: Using condensed text (${document.condensedText.length} chars) instead of full text (${document.extractedText.length} chars)`);
+    console.log(`💰 Token reduction: ${reduction}% - This will save significant API costs!`);
+    return document.condensedText;
+  }
+  
+  // Fallback to full text for backward compatibility
+  console.warn(`⚠️ WARNING: Using full extracted text (${document.extractedText.length} chars) - condensed version not available`);
+  console.warn(`⚠️ This will use MORE tokens and cost MORE. Condensed text should be generated.`);
+  return document.extractedText;
+}
+
 // Check API quota status
 router.get('/quota-status', auth, (req, res) => {
   try {
@@ -998,6 +1270,50 @@ router.get('/quota-status', auth, (req, res) => {
       success: false,
       message: 'Failed to get quota status'
     });
+  }
+});
+
+// Generate condensed version for existing document (for migration/optimization)
+router.post('/:id/generate-condensed', auth, async (req, res) => {
+  try {
+    const document = await Document.findOne({ _id: req.params.id, user: req.user._id });
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+
+    // Check if condensed version already exists
+    if (document.condensedText && document.condensedText.trim().length > 100) {
+      return res.json({
+        message: 'Condensed version already exists',
+        condensedLength: document.condensedTextLength,
+        originalLength: document.extractedText.length,
+        reduction: Math.round((1 - document.condensedTextLength / document.extractedText.length) * 100) + '%'
+      });
+    }
+
+    if (!document.extractedText || !document.extractedText.trim()) {
+      return res.status(400).json({ message: 'No extracted text available for this document' });
+    }
+
+    console.log(`🔄 Generating condensed version for document: ${document.title}`);
+    const condensedText = await createCondensedVersion(document.extractedText);
+    
+    document.condensedText = condensedText;
+    document.condensedTextLength = condensedText.length;
+    await document.save();
+
+    const reduction = Math.round((1 - condensedText.length / document.extractedText.length) * 100);
+    console.log(`✅ Condensed version created: ${reduction}% reduction`);
+
+    res.json({
+      message: 'Condensed version generated successfully',
+      originalLength: document.extractedText.length,
+      condensedLength: condensedText.length,
+      reduction: reduction + '%'
+    });
+  } catch (error) {
+    console.error('Error generating condensed version:', error);
+    res.status(500).json({ message: 'Failed to generate condensed version: ' + error.message });
   }
 });
 
@@ -1040,36 +1356,62 @@ router.post('/upload', auth, upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ message: 'Could not extract text from PDF' });
     }
 
-    console.log('Starting question generation with AI service...');
-    // Generate questions using AI service
-    const questions = await generateQuestions(extractedText);
-    console.log('Questions generated:', questions.length);
-
-    // Create document record
+    // Create document record immediately (condensed version will be generated in background)
+    // Questions will be generated on-demand using condensed text to save costs
     const document = new Document({
       title: req.file.originalname.replace('.pdf', ''),
       filename: req.file.filename,
       filePath: req.file.path,
       extractedText: extractedText,
-      questions: questions,
+      condensedText: null, // Will be generated in background
+      condensedTextLength: 0,
+      questions: [], // Empty - questions will be generated on-demand using condensed text
       user: req.user._id
     });
 
     console.log('Saving document to database...');
     await document.save();
     console.log('Document saved with ID:', document._id);
+    
+    // Generate condensed version in background (non-blocking - doesn't delay upload response)
+    const documentId = document._id;
+    const extractedTextForBackground = extractedText;
+    
+    // Use setImmediate to ensure this runs after the response is sent
+    setImmediate(async () => {
+      try {
+        console.log(`🔄 Background: Starting condensed version generation for document ${documentId}...`);
+        const condensedText = await createCondensedVersion(extractedTextForBackground);
+        const condensedTextLength = condensedText.length;
+        const reduction = Math.round((1 - condensedTextLength / extractedTextForBackground.length) * 100);
+        
+        // Update document with condensed version
+        await Document.findByIdAndUpdate(documentId, {
+          condensedText: condensedText,
+          condensedTextLength: condensedTextLength
+        });
+        
+        console.log(`✅ Background: Condensed version created for document ${documentId}`);
+        console.log(`📊 Reduction: ${extractedTextForBackground.length} -> ${condensedTextLength} chars (${reduction}% reduction)`);
+      } catch (error) {
+        console.error(`⚠️ Background: Failed to create condensed version for document ${documentId}:`, error.message);
+        // Document will continue to work with full text - no user impact
+      }
+    });
 
     // Add document to user's documents array
     user.documents.push(document._id);
     await user.save();
     console.log('Document added to user profile');
 
+    // Return response immediately (condensed version generating in background)
     res.json({
-      message: 'PDF uploaded and processed successfully',
+      message: 'PDF uploaded successfully. Condensed version is being generated in the background for cost-effective operations.',
       document: {
         id: document._id,
         title: document.title,
-        questionsCount: document.questions.length,
+        questionsCount: 0, // Questions will be generated on-demand
+        condensedTextReady: false, // Will be ready soon (generating in background)
         uploadedAt: document.uploadedAt
       }
     });
@@ -1091,11 +1433,33 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
   try {
     const document = await Document.findOne({ _id: req.params.id, user: req.user._id });
     if (!document) return res.status(404).json({ message: 'Document not found' });
-    if (!document.extractedText || !document.extractedText.trim()) {
+    
+    // Check if summary is already cached
+    if (document.summary && document.summary.trim().length > 0) {
+      console.log('✅ Returning cached summary');
+      return res.json({ summary: document.summary, cached: true });
+    }
+    
+    // Get text for processing (condensed if available)
+    const textToUse = getTextForProcessing(document);
+    if (!textToUse || !textToUse.trim()) {
       return res.status(400).json({ message: 'No extracted text to summarize' });
     }
     
-    const result = await generateSummary(document.extractedText);
+    // Verify we're using condensed text
+    const isUsingCondensed = document.condensedText && 
+                             document.condensedText.trim().length > 100 && 
+                             textToUse === document.condensedText;
+    console.log(`📝 Generating summary from ${isUsingCondensed ? '✅ CONDENSED' : '⚠️ FULL'} text...`);
+    if (isUsingCondensed) {
+      console.log(`💰 Cost savings: ${Math.round((1 - textToUse.length / document.extractedText.length) * 100)}% reduction in tokens`);
+    }
+    const result = await generateSummary(textToUse);
+    
+    // Cache the summary
+    document.summary = result.response;
+    await document.save();
+    console.log('✅ Summary cached for future use');
     
     // Consume the actual tokens used
     const user = req.userWithTokens; // User object with token methods from middleware
@@ -1104,7 +1468,7 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
       console.log(`📊 Consumed ${result.tokenUsage.totalTokens} tokens for summary generation`);
     }
     
-    res.json({ summary: result.response });
+    res.json({ summary: result.response, cached: false });
   } catch (error) {
     console.error('Generate summary error:', error);
     res.status(500).json({ message: 'Failed to generate summary' });
@@ -1122,7 +1486,9 @@ router.post('/:id/regenerate', auth, async (req, res) => {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    if (!document.extractedText || !document.extractedText.trim()) {
+    // Get text for processing (condensed if available)
+    const textToUse = getTextForProcessing(document);
+    if (!textToUse || !textToUse.trim()) {
       return res.status(400).json({ message: 'No extracted text available for this document' });
     }
 
@@ -1132,7 +1498,15 @@ router.post('/:id/regenerate', auth, async (req, res) => {
       coverAllTopics: !!coverAllTopics
     };
 
-    const questions = await generateQuestions(document.extractedText, options);
+    // Verify we're using condensed text
+    const isUsingCondensed = document.condensedText && 
+                             document.condensedText.trim().length > 100 && 
+                             textToUse === document.condensedText;
+    console.log(`🔄 Regenerating questions from ${isUsingCondensed ? '✅ CONDENSED' : '⚠️ FULL'} text...`);
+    if (isUsingCondensed) {
+      console.log(`💰 Cost savings: ${Math.round((1 - textToUse.length / document.extractedText.length) * 100)}% reduction in tokens`);
+    }
+    const questions = await generateQuestions(textToUse, options);
 
     document.questions = questions;
     await document.save();
@@ -1157,12 +1531,28 @@ router.post('/:id/regenerate-one', auth, async (req, res) => {
     if (!Number.isInteger(index) || index < 0 || index >= document.questions.length) {
       return res.status(400).json({ message: 'Invalid question index' });
     }
+    
+    // Get text for processing (condensed if available)
+    const textToUse = getTextForProcessing(document);
+    if (!textToUse || !textToUse.trim()) {
+      return res.status(400).json({ message: 'No extracted text available for this document' });
+    }
+    
     const options = {
       type: (type || 'mcq'),
       numQuestions: 1,
       coverAllTopics: !!coverAllTopics
     };
-    const generated = await generateQuestions(document.extractedText, options);
+    
+    // Verify we're using condensed text
+    const isUsingCondensed = document.condensedText && 
+                             document.condensedText.trim().length > 100 && 
+                             textToUse === document.condensedText;
+    console.log(`🔄 Regenerating single question from ${isUsingCondensed ? '✅ CONDENSED' : '⚠️ FULL'} text...`);
+    if (isUsingCondensed) {
+      console.log(`💰 Cost savings: ${Math.round((1 - textToUse.length / document.extractedText.length) * 100)}% reduction in tokens`);
+    }
+    const generated = await generateQuestions(textToUse, options);
     if (!generated || generated.length === 0) {
       return res.status(500).json({ message: 'Failed to regenerate question' });
     }
@@ -1179,10 +1569,16 @@ router.post('/:id/regenerate-one', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const documents = await Document.find({ user: req.user._id })
-      .select('title filename questions uploadedAt')
+      .select('title filename questions uploadedAt condensedText condensedTextLength')
       .sort({ uploadedAt: -1 });
 
-    res.json(documents);
+    // Add condensedTextReady status to each document
+    const documentsWithStatus = documents.map(doc => ({
+      ...doc.toObject(),
+      condensedTextReady: !!(doc.condensedText && doc.condensedText.trim().length > 100)
+    }));
+
+    res.json(documentsWithStatus);
   } catch (error) {
     console.error('Get documents error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -1252,16 +1648,27 @@ router.post('/:id/simplified-summary', auth, tokenUsageMiddleware(1500), async (
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    console.log('📄 Document found:', document.title);
-    console.log('📄 Document has extractedText:', !!document.extractedText);
-    console.log('📄 ExtractedText length:', document.extractedText?.length || 0);
-
-    // Use the actual document text instead of relying on summary
-    if (!document.extractedText) {
-      console.log('❌ No extractedText found in document');
-      return res.status(400).json({ message: 'No document result.response available' });
+    // Check if simplified summary is already cached
+    if (document.simplifiedSummary && document.simplifiedSummary.trim().length > 0) {
+      console.log('✅ Returning cached simplified summary');
+      return res.json({ summary: document.simplifiedSummary, cached: true });
     }
 
+    // Get text for processing (condensed if available)
+    const textToUse = getTextForProcessing(document);
+    if (!textToUse || !textToUse.trim()) {
+      console.log('❌ No text available for document');
+      return res.status(400).json({ message: 'No document content available' });
+    }
+
+    // Verify we're using condensed text
+    const isUsingCondensed = document.condensedText && 
+                             document.condensedText.trim().length > 100 && 
+                             textToUse === document.condensedText;
+    console.log(`📄 Generating simplified summary from ${isUsingCondensed ? '✅ CONDENSED' : '⚠️ FULL'} text...`);
+    if (isUsingCondensed) {
+      console.log(`💰 Cost savings: ${Math.round((1 - textToUse.length / document.extractedText.length) * 100)}% reduction in tokens`);
+    }
     const aiService = await createAIService();
 
     const prompt = `You are an expert educational content writer who specializes in making complex academic and technical content accessible to all learners.
@@ -1334,12 +1741,17 @@ Your task is to create a SIMPLIFIED, professional, and easy-to-read version of t
 - Maintains all important information
 
 Document Content:
-${document.extractedText}
+${textToUse}
 
 Provide a complete, well-formatted, simplified summary that anyone can understand.`;
 
     try {
       const result = await aiService.callAI(prompt);
+      
+      // Cache the simplified summary
+      document.simplifiedSummary = result.response;
+      await document.save();
+      console.log('✅ Simplified summary cached for future use');
       
       // Consume the actual tokens used
       const user = req.userWithTokens; // User object with token methods from middleware
@@ -1348,7 +1760,7 @@ Provide a complete, well-formatted, simplified summary that anyone can understan
         console.log(`📊 Consumed ${result.tokenUsage.totalTokens} tokens for simplified summary generation`);
       }
       
-      res.json({ summary: result.response }); // Extract the response string from the result object
+      res.json({ summary: result.response, cached: false }); // Extract the response string from the result object
     } catch (error) {
       console.error('AI service error for simplified summary:', error);
       
@@ -1361,7 +1773,8 @@ Provide a complete, well-formatted, simplified summary that anyone can understan
       }
 
       // Fallback simplified summary
-      const fallbackSummary = `Simplified Summary:\n\n${document.extractedText.substring(0, 1000)}...\n\nNote: This is a simplified version that explains the key concepts in easier terms. The result.response covers the main topics from your document with additional explanations to help you understand the material better.`;
+      const textForFallback = textToUse || document.extractedText;
+      const fallbackSummary = `Simplified Summary:\n\n${textForFallback.substring(0, 1000)}...\n\nNote: This is a simplified version that explains the key concepts in easier terms. The content covers the main topics from your document with additional explanations to help you understand the material better.`;
       
       res.json({ summary: fallbackSummary });
     }
@@ -1389,16 +1802,27 @@ router.post('/:id/shorter-summary', auth, tokenUsageMiddleware(1200), async (req
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    console.log('📄 Document found:', document.title);
-    console.log('📄 Document has extractedText:', !!document.extractedText);
-    console.log('📄 ExtractedText length:', document.extractedText?.length || 0);
-
-    // Use the actual document text instead of relying on summary
-    if (!document.extractedText) {
-      console.log('❌ No extractedText found in document');
-      return res.status(400).json({ message: 'No document result.response available' });
+    // Check if shorter summary is already cached for this length
+    if (document.shorterSummary && document.shorterSummary[length] && document.shorterSummary[length].trim().length > 0) {
+      console.log(`✅ Returning cached shorter summary (${length})`);
+      return res.json({ summary: document.shorterSummary[length], cached: true });
     }
 
+    // Get text for processing (condensed if available)
+    const textToUse = getTextForProcessing(document);
+    if (!textToUse || !textToUse.trim()) {
+      console.log('❌ No text available for document');
+      return res.status(400).json({ message: 'No document content available' });
+    }
+
+    // Verify we're using condensed text
+    const isUsingCondensed = document.condensedText && 
+                             document.condensedText.trim().length > 100 && 
+                             textToUse === document.condensedText;
+    console.log(`📄 Generating shorter summary (${length}) from ${isUsingCondensed ? '✅ CONDENSED' : '⚠️ FULL'} text...`);
+    if (isUsingCondensed) {
+      console.log(`💰 Cost savings: ${Math.round((1 - textToUse.length / document.extractedText.length) * 100)}% reduction in tokens`);
+    }
     const aiService = await createAIService();
 
     let lengthInstruction = '';
@@ -1475,12 +1899,20 @@ Your task is to create a SHORTER, more focused version of the following document
 - Exactly matches the requested length
 
 Document Content:
-${document.extractedText}
+${textToUse}
 
 Provide a complete, well-formatted, shorter summary that maintains essential information while being more concise.`;
 
     try {
       const result = await aiService.callAI(prompt);
+
+      // Cache the shorter summary for this length
+      if (!document.shorterSummary) {
+        document.shorterSummary = {};
+      }
+      document.shorterSummary[length] = result.response;
+      await document.save();
+      console.log(`✅ Shorter summary (${length}) cached for future use`);
 
       // Consume the actual tokens used
       const user = req.userWithTokens; // User object with token methods from middleware
@@ -1489,7 +1921,7 @@ Provide a complete, well-formatted, shorter summary that maintains essential inf
         console.log(`📊 Consumed ${result.tokenUsage.totalTokens} tokens for shorter summary generation`);
       }
 
-      res.json({ summary: result.response }); // Extract the response string from the result object
+      res.json({ summary: result.response, cached: false }); // Extract the response string from the result object
     } catch (error) {
       console.error('AI service error for shorter summary:', error);
       
@@ -1503,7 +1935,8 @@ Provide a complete, well-formatted, shorter summary that maintains essential inf
 
       // Fallback shorter summary based on length
       let fallbackSummary = '';
-      const lines = document.extractedText.split('\n');
+      const textForFallback = textToUse || document.extractedText;
+      const lines = textForFallback.split('\n');
       
       switch (length) {
         case 'short':

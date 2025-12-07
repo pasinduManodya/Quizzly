@@ -14,6 +14,7 @@ interface Document {
   filename: string;
   questions: any[];
   uploadedAt: string;
+  condensedTextReady?: boolean;
 }
 
 const Dashboard: React.FC = () => {
@@ -91,6 +92,7 @@ const Dashboard: React.FC = () => {
   const [startingQuiz, setStartingQuiz] = useState(false);
 
   const isInitialMount = useRef(true);
+  const condensedTextPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     console.log('🟡 [MOUNT] Dashboard useEffect called', { isInitialMount: isInitialMount.current });
@@ -119,8 +121,42 @@ const Dashboard: React.FC = () => {
         clearInterval(uploadCompleteIntervalRef.current);
         uploadCompleteIntervalRef.current = null;
       }
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+        condensedTextPollIntervalRef.current = null;
+      }
     };
   }, []); // Empty deps - only run on mount
+  
+  // Separate effect to poll for condensed text readiness
+  useEffect(() => {
+    // Poll for condensed text readiness if any documents are not ready
+    const hasUnreadyDocuments = documents.some(doc => !doc.condensedTextReady);
+    
+    if (hasUnreadyDocuments) {
+      // Clear any existing interval first
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+      }
+      // Poll every 3 seconds to check if condensed text is ready
+      condensedTextPollIntervalRef.current = setInterval(() => {
+        fetchDocuments(true); // preserveOnError = true to avoid clearing on temporary errors
+      }, 3000) as NodeJS.Timeout;
+    } else {
+      // Clear interval if all documents are ready
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+        condensedTextPollIntervalRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+        condensedTextPollIntervalRef.current = null;
+      }
+    };
+  }, [documents]); // Re-run when documents change to check if polling is needed
 
   // Handle browser back button
   useEffect(() => {
@@ -843,17 +879,32 @@ const Dashboard: React.FC = () => {
                     <p className="mt-1 text-sm text-gray-500">
                       Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
                     </p>
+                    {!doc.condensedTextReady && (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-yellow-600 border-t-transparent"></div>
+                          <p className="text-xs text-yellow-800 font-medium">
+                            Processing document for optimal performance...
+                          </p>
+                        </div>
+                        <p className="text-xs text-yellow-600 mt-1">
+                          This may take a minute. Buttons will be available once ready.
+                        </p>
+                      </div>
+                    )}
                     <div className="mt-4 flex space-x-3">
               <button
                 onClick={() => handleStartQuiz(doc._id)}
-                className="flex-1 btn-primary text-sm font-medium"
+                disabled={!doc.condensedTextReady}
+                className={`flex-1 btn-primary text-sm font-medium ${!doc.condensedTextReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'Start Quiz'}
               >
                         Start Quiz
                       </button>
                       <div className="relative flex-1">
                         <button
                           onClick={async () => {
-                            if (generatingSummary[doc._id]) return;
+                            if (generatingSummary[doc._id] || !doc.condensedTextReady) return;
                             
                             try {
                               setGeneratingSummary(prev => ({ ...prev, [doc._id]: true }));
@@ -902,8 +953,9 @@ const Dashboard: React.FC = () => {
                               delete summaryAbortControllersRef.current[doc._id];
                             }
                           }}
-                          disabled={generatingSummary[doc._id]}
-                          className="w-full btn-secondary text-sm font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                          disabled={generatingSummary[doc._id] || !doc.condensedTextReady}
+                          className={`w-full btn-secondary text-sm font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden ${!doc.condensedTextReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : generatingSummary[doc._id] ? 'Generating summary...' : 'Create Summary'}
                         >
                           {generatingSummary[doc._id] ? (
                             <div className="flex items-center space-x-2">
@@ -931,7 +983,9 @@ const Dashboard: React.FC = () => {
                       </div>
                       <button
                         onClick={() => handleDeleteDocument(doc._id)}
-                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg shadow text-sm font-medium"
+                        disabled={!doc.condensedTextReady}
+                        className={`bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg shadow text-sm font-medium ${!doc.condensedTextReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'Delete Document'}
                       >
                         Delete
                       </button>
