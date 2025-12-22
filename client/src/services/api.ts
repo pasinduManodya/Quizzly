@@ -1,11 +1,16 @@
 import axios from 'axios';
 
 // Determine API base URL
-// If REACT_APP_API_URL is set, use it; otherwise use relative path for same-origin requests
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+// In production, use relative path (same origin), in development use the proxy or full URL
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '' // Empty string means same origin in production
+  : process.env.REACT_APP_API_URL || 'http://localhost:5000'; // Default to localhost in development
 
 // Set up axios defaults
 axios.defaults.baseURL = API_BASE_URL;
+
+// Enable withCredentials to send cookies with requests
+axios.defaults.withCredentials = true;
 
 // Set default headers
 axios.defaults.headers.common['Content-Type'] = 'application/json';

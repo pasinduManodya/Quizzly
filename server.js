@@ -118,8 +118,8 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files
-app.use(express.static('uploads'));
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
 
 // MongoDB connection with robust retry logic
 console.log('🔄 Initializing MongoDB connection...');
@@ -163,7 +163,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Routes
+// API Routes - these must come before static file serving
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/admin', require('./routes/aiConfig'));
@@ -175,16 +175,16 @@ app.use('/api/contact', require('./routes/contact'));
 app.use('/api/admin', require('./routes/pricing'));
 app.use('/api/pricing', require('./routes/pricing'));
 
-// Serve React app in production only
+// Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   // Try multiple possible build paths
   const possiblePaths = [
-    path.join(__dirname, 'src/client/build'),
     path.join(__dirname, 'client/build'),
+    path.join(__dirname, 'src/client/build'),
     path.join(__dirname, '../client/build'),
     path.join(__dirname, '../../client/build'),
-    path.resolve(process.cwd(), 'src/client/build'),
-    path.resolve(process.cwd(), 'client/build')
+    path.resolve(process.cwd(), 'client/build'),
+    path.resolve(process.cwd(), 'src/client/build')
   ];
   
   let buildPath = null;
@@ -201,11 +201,39 @@ if (process.env.NODE_ENV === 'production') {
     }
   }
   
-  // Check if build directory exists
+  // If we found the build directory, serve static files and handle client-side routing
   if (buildPath && indexPath) {
-    app.use(express.static(buildPath));
-    app.get('*', (req, res) => {
-      res.sendFile(indexPath);
+    console.log('Serving static files from:', buildPath);
+    
+    // Serve static files from the React app
+    app.use(express.static(buildPath, {
+      // Don't serve index.html for API routes
+      index: false,
+      // Cache control for static assets
+      maxAge: '1y',
+      // Allow serving HTML files
+      extensions: ['html']
+    }));
+    
+    // Handle React routing, return all other requests to React app
+    app.get('*', (req, res, next) => {
+      // Skip API routes
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      
+      // Skip file extensions (like .js, .css, .png, etc.)
+      if (req.path.includes('.')) {
+        return next();
+      }
+      
+      // For all other routes, serve index.html
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error('Error sending file:', err);
+          next(err);
+        }
+      });
     });
   } else {
     // Build directory doesn't exist - log warning and provide helpful error
