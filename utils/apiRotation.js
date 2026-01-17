@@ -39,13 +39,15 @@ class APIRotationManager {
         return config;
       }
 
-      // If all configs are exhausted, return the one with lowest priority (most recent attempt)
+      // If all configs are exhausted, try to find the most recently added one
+      // (it might have fresh credits)
       config = await AIConfig.findOne()
         .select('+apiKey')
-        .sort({ priority: 1, createdAt: -1 });
+        .sort({ createdAt: -1 }); // Most recent first
 
       if (config) {
-        console.log(`⚠️  All APIs exhausted. Using: ${config.provider} - ${config.model}`);
+        console.log(`⚠️  All APIs marked as exhausted. Trying most recent: ${config.provider} - ${config.model}`);
+        console.log(`💡 Tip: If this API has fresh credits, it will work. Otherwise, add a new API key.`);
         return config;
       }
 

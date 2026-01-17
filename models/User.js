@@ -112,11 +112,35 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
+    totalInputTokens: {
+      type: Number,
+      default: 0
+    },
+    totalOutputTokens: {
+      type: Number,
+      default: 0
+    },
     monthlyTokensUsed: {
       type: Number,
       default: 0
     },
+    monthlyInputTokens: {
+      type: Number,
+      default: 0
+    },
+    monthlyOutputTokens: {
+      type: Number,
+      default: 0
+    },
     dailyTokensUsed: {
+      type: Number,
+      default: 0
+    },
+    dailyInputTokens: {
+      type: Number,
+      default: 0
+    },
+    dailyOutputTokens: {
       type: Number,
       default: 0
     },
@@ -243,35 +267,59 @@ userSchema.methods.canUseTokens = function(tokensNeeded = 0) {
   };
 };
 
-userSchema.methods.consumeTokens = async function(tokensUsed) {
+userSchema.methods.consumeTokens = async function(tokensUsed, inputTokens = 0, outputTokens = 0) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const lastDailyReset = new Date(this.tokenUsage.lastDailyResetDate);
   const lastMonthlyReset = new Date(this.tokenUsage.lastTokenResetDate);
   
+  // If input/output not provided, split total evenly (fallback)
+  if (inputTokens === 0 && outputTokens === 0 && tokensUsed > 0) {
+    inputTokens = Math.ceil(tokensUsed * 0.3); // Estimate 30% input
+    outputTokens = Math.ceil(tokensUsed * 0.7); // Estimate 70% output
+  }
+  
   // Reset daily tokens if it's a new day
   if (today > lastDailyReset) {
     this.tokenUsage.dailyTokensUsed = 0;
+    this.tokenUsage.dailyInputTokens = 0;
+    this.tokenUsage.dailyOutputTokens = 0;
     this.tokenUsage.lastDailyResetDate = now;
   }
   
   // Reset monthly tokens if it's a new month
   if (now.getMonth() !== lastMonthlyReset.getMonth() || now.getFullYear() !== lastMonthlyReset.getFullYear()) {
     this.tokenUsage.monthlyTokensUsed = 0;
+    this.tokenUsage.monthlyInputTokens = 0;
+    this.tokenUsage.monthlyOutputTokens = 0;
     this.tokenUsage.lastTokenResetDate = now;
   }
   
   // Update token usage
   this.tokenUsage.totalTokensUsed += tokensUsed;
+  this.tokenUsage.totalInputTokens += inputTokens;
+  this.tokenUsage.totalOutputTokens += outputTokens;
+  
   this.tokenUsage.dailyTokensUsed += tokensUsed;
+  this.tokenUsage.dailyInputTokens += inputTokens;
+  this.tokenUsage.dailyOutputTokens += outputTokens;
+  
   this.tokenUsage.monthlyTokensUsed += tokensUsed;
+  this.tokenUsage.monthlyInputTokens += inputTokens;
+  this.tokenUsage.monthlyOutputTokens += outputTokens;
   
   await this.save();
   
   return {
     totalUsed: this.tokenUsage.totalTokensUsed,
+    totalInputTokens: this.tokenUsage.totalInputTokens,
+    totalOutputTokens: this.tokenUsage.totalOutputTokens,
     dailyUsed: this.tokenUsage.dailyTokensUsed,
+    dailyInputTokens: this.tokenUsage.dailyInputTokens,
+    dailyOutputTokens: this.tokenUsage.dailyOutputTokens,
     monthlyUsed: this.tokenUsage.monthlyTokensUsed,
+    monthlyInputTokens: this.tokenUsage.monthlyInputTokens,
+    monthlyOutputTokens: this.tokenUsage.monthlyOutputTokens,
     dailyRemaining: this.tokenLimits.dailyLimit - this.tokenUsage.dailyTokensUsed,
     monthlyRemaining: this.tokenLimits.monthlyLimit - this.tokenUsage.monthlyTokensUsed
   };
@@ -286,19 +334,29 @@ userSchema.methods.getTokenUsage = function() {
   // Reset daily tokens if it's a new day
   if (today > lastDailyReset) {
     this.tokenUsage.dailyTokensUsed = 0;
+    this.tokenUsage.dailyInputTokens = 0;
+    this.tokenUsage.dailyOutputTokens = 0;
     this.tokenUsage.lastDailyResetDate = now;
   }
   
   // Reset monthly tokens if it's a new month
   if (now.getMonth() !== lastMonthlyReset.getMonth() || now.getFullYear() !== lastMonthlyReset.getFullYear()) {
     this.tokenUsage.monthlyTokensUsed = 0;
+    this.tokenUsage.monthlyInputTokens = 0;
+    this.tokenUsage.monthlyOutputTokens = 0;
     this.tokenUsage.lastTokenResetDate = now;
   }
   
   return {
     totalUsed: this.tokenUsage.totalTokensUsed,
+    totalInputTokens: this.tokenUsage.totalInputTokens,
+    totalOutputTokens: this.tokenUsage.totalOutputTokens,
     dailyUsed: this.tokenUsage.dailyTokensUsed,
+    dailyInputTokens: this.tokenUsage.dailyInputTokens,
+    dailyOutputTokens: this.tokenUsage.dailyOutputTokens,
     monthlyUsed: this.tokenUsage.monthlyTokensUsed,
+    monthlyInputTokens: this.tokenUsage.monthlyInputTokens,
+    monthlyOutputTokens: this.tokenUsage.monthlyOutputTokens,
     dailyRemaining: this.tokenLimits.dailyLimit - this.tokenUsage.dailyTokensUsed,
     monthlyRemaining: this.tokenLimits.monthlyLimit - this.tokenUsage.monthlyTokensUsed,
     dailyLimit: this.tokenLimits.dailyLimit,

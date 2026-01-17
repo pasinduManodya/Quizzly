@@ -156,26 +156,35 @@ const Quiz: React.FC = () => {
   };
 
   const formatQuestionText = (questionText: string) => {
-    // Check if this is a structured essay question with parts
-    if (questionText.includes('a)') && questionText.includes('b)') && questionText.includes('c)')) {
-      // Split by parts and format each part
-      const parts = questionText.split(/(?=[a-z]\))/).filter(part => part.trim());
+    // Check if this is a structured essay question with parts (a), (b), (c), etc.
+    // Match parts whether they're on new lines or inline
+    const partPattern = /[a-z]\)\s+/gi;
+    const partMatches = questionText.match(partPattern);
+    const hasMultipleParts = partMatches && partMatches.length >= 2;
+    
+    if (hasMultipleParts) {
+      // Split by part pattern (both newline and inline)
+      const parts = questionText.split(/(?=[a-z]\)\s+)/i).filter(part => part.trim());
       
       return (
         <div className="space-y-4">
           {parts.map((part, index) => {
             const trimmedPart = part.trim();
-            const isFirstPart = index === 0;
+            
+            if (!trimmedPart) return null;
+            
+            // Check if this part starts with a letter and parenthesis
+            const isSubPart = /^[a-z]\)\s+/i.test(trimmedPart);
             
             return (
-              <div key={index} className={`${isFirstPart ? 'text-lg' : 'text-base'} text-gray-700`}>
-                {isFirstPart ? (
-                  <div className="mb-4">
-                    <p className="font-medium text-gray-800">{trimmedPart}</p>
-                  </div>
+              <div key={index}>
+                {!isSubPart ? (
+                  // Main question (intro text before first part)
+                  <p className="text-lg font-semibold text-gray-900 leading-relaxed mb-4">{trimmedPart}</p>
                 ) : (
-                  <div className="ml-4 pl-4 border-l-2 border-blue-200">
-                    <p className="font-medium text-gray-800">{trimmedPart}</p>
+                  // Sub-parts with consistent formatting - maintain a), b), c) structure
+                  <div className="ml-4 pl-4 border-l-3 border-blue-400 bg-blue-50 py-3 px-4 rounded-r">
+                    <p className="text-base font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">{trimmedPart}</p>
                   </div>
                 )}
               </div>
@@ -185,8 +194,8 @@ const Quiz: React.FC = () => {
       );
     }
     
-    // Regular question formatting
-    return <p className="text-lg text-gray-700">{questionText}</p>;
+    // Regular question formatting - show full text without truncation
+    return <p className="text-lg text-gray-700 leading-relaxed whitespace-pre-wrap">{questionText}</p>;
   };
 
   const handleSubmitQuiz = async () => {

@@ -123,9 +123,40 @@ app.use('/uploads', express.static('uploads'));
 
 // MongoDB connection with robust retry logic
 console.log('🔄 Initializing MongoDB connection...');
-mongoManager.connect().then((connected) => {
+mongoManager.connect().then(async (connected) => {
   if (connected) {
     console.log('✅ MongoDB connection established successfully');
+    
+    // Fix users with incorrect token limits on startup
+    try {
+      console.log('🔧 Checking for users with incorrect token limits...');
+      const usersToFix = await User.find({
+        $or: [
+          { 'tokenLimits.dailyLimit': 1000000 },
+          { 'tokenLimits.monthlyLimit': 10000000 }
+        ]
+      });
+      
+      if (usersToFix.length > 0) {
+        console.log(`⚠️  Found ${usersToFix.length} users with incorrect token limits. Fixing...`);
+        
+        for (const user of usersToFix) {
+          try {
+            await user.loadTokenLimits();
+            await user.save();
+            console.log(`✅ Fixed token limits for ${user.email}`);
+          } catch (error) {
+            console.error(`❌ Error fixing user ${user.email}:`, error.message);
+          }
+        }
+        
+        console.log(`✅ Fixed token limits for ${usersToFix.length} users`);
+      } else {
+        console.log('✅ All users have correct token limits');
+      }
+    } catch (error) {
+      console.error('❌ Error checking token limits:', error.message);
+    }
   } else {
     console.log('⚠️  MongoDB connection failed, but server will continue');
     console.log('🔄 Automatic reconnection attempts will continue in background');

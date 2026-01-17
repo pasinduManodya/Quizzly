@@ -68,8 +68,12 @@ router.post('/ai-config', adminAuth, asyncHandler(async (req, res) => {
     throw new ValidationError('Provider, API key, and model are required');
   }
 
-  // If setting as active, deactivate others
-  if (isActive) {
+  // When adding a new API, automatically activate it and reset exhausted flags
+  // This ensures the new API is used immediately
+  const shouldActivateNew = isActive !== false; // Default to true unless explicitly set to false
+  
+  if (shouldActivateNew) {
+    // Deactivate all other configs
     await AIConfig.updateMany({}, { isActive: false });
   }
 
@@ -81,24 +85,34 @@ router.post('/ai-config', adminAuth, asyncHandler(async (req, res) => {
     baseUrl: baseUrl || '',
     temperature: 0.5, // Fixed for study apps - always use optimal value
     settings: settings || {},
-    isActive: isActive || false,
+    isActive: shouldActivateNew, // Activate new API by default
     // Set default priority to 0 if not provided
     priority: req.body.priority || 0,
-    // Initialize tracking fields
+    // Initialize tracking fields - IMPORTANT: new APIs start fresh
     creditsExhausted: false,
+    creditsExhaustedAt: null,
     successCount: 0,
-    failureCount: 0
+    failureCount: 0,
+    testStatus: 'not_tested',
+    testError: null
   });
   
   await config.save();
   
-  // If setting as active, deactivate others
-  if (isActive) {
+  // If activating this new config, deactivate others
+  if (shouldActivateNew) {
     await AIConfig.updateMany(
       { _id: { $ne: config._id } },
       { $set: { isActive: false } }
     );
   }
+  
+  console.log(`✅ New API created and ${shouldActivateNew ? 'ACTIVATED' : 'created (inactive)'}:`, {
+    provider: config.provider,
+    model: config.model,
+    isActive: config.isActive,
+    creditsExhausted: config.creditsExhausted
+  });
 
   logger.info(`Admin ${req.user.email} created AI config`, {
     adminId: req.user._id,
@@ -436,6 +450,37 @@ router.post('/ai-config/:id/restore', adminAuth, asyncHandler(async (req, res) =
         failureCount: config.failureCount,
         successCount: config.successCount
       }
+    }
+  });
+}));
+
+// Reset all exhausted APIs (admin action)
+router.post('/ai-config/reset-all-exhausted', adminAuth, asyncHandler(async (req, res) => {
+  const APIConfig = require('../models/AIConfig');
+  
+  const result = await APIConfig.updateMany(
+    { creditsExhausted: true },
+    {
+      creditsExhausted: false,
+      creditsExhaustedAt: null,
+      failureCount: 0,
+      testStatus: 'not_tested',
+      testError: null
+    }
+  );
+
+  logger.info(`Admin ${req.user.email} reset all exhausted APIs`, {
+    adminId: req.user._id,
+    resetCount: result.modifiedCount
+  });
+
+  console.log(`✅ Reset ${result.modifiedCount} exhausted APIs`);
+
+  res.json({
+    success: true,
+    message: `Reset ${result.modifiedCount} exhausted API(s). All APIs are now available.`,
+    data: {
+      resetCount: result.modifiedCount
     }
   });
 }));

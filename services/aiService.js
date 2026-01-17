@@ -42,19 +42,40 @@ class AIService {
         switch (this.config.provider) {
           case 'gemini':
             result = await this.callGemini(prompt);
-            tokenUsage = this.estimateGeminiTokens(prompt, result);
+            // Use actual token counts from Gemini if available, otherwise estimate
+            if (result.tokenUsage) {
+              tokenUsage = result.tokenUsage;
+              result = result.response;
+            } else {
+              tokenUsage = this.estimateGeminiTokens(prompt, result);
+            }
             break;
           case 'openai':
             result = await this.callOpenAI(prompt);
-            tokenUsage = this.estimateOpenAITokens(prompt, result);
+            if (result.tokenUsage) {
+              tokenUsage = result.tokenUsage;
+              result = result.response;
+            } else {
+              tokenUsage = this.estimateOpenAITokens(prompt, result);
+            }
             break;
           case 'claude':
             result = await this.callClaude(prompt);
-            tokenUsage = this.estimateClaudeTokens(prompt, result);
+            if (result.tokenUsage) {
+              tokenUsage = result.tokenUsage;
+              result = result.response;
+            } else {
+              tokenUsage = this.estimateClaudeTokens(prompt, result);
+            }
             break;
           case 'custom':
             result = await this.callCustom(prompt);
-            tokenUsage = this.estimateCustomTokens(prompt, result);
+            if (result.tokenUsage) {
+              tokenUsage = result.tokenUsage;
+              result = result.response;
+            } else {
+              tokenUsage = this.estimateCustomTokens(prompt, result);
+            }
             break;
           default:
             throw new Error(`Unsupported AI provider: ${this.config.provider}`);
@@ -120,7 +141,6 @@ class AIService {
     });
 
     console.log('🔍 Gemini API Response Status:', response.status);
-    console.log('🔍 Gemini API Response Data:', JSON.stringify(response.data, null, 2));
 
     // Check if response has the expected structure
     if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
@@ -134,7 +154,20 @@ class AIService {
       throw new Error('Invalid candidate structure from Gemini API');
     }
 
-    return candidate.content.parts[0].text;
+    const responseText = candidate.content.parts[0].text;
+    
+    // Extract actual token usage from Gemini API response
+    let tokenUsage = null;
+    if (response.data.usageMetadata) {
+      tokenUsage = {
+        promptTokens: response.data.usageMetadata.promptTokenCount || 0,
+        completionTokens: response.data.usageMetadata.candidatesTokenCount || 0,
+        totalTokens: response.data.usageMetadata.totalTokenCount || 0
+      };
+      console.log(`📊 Actual Gemini tokens: ${tokenUsage.promptTokens} input + ${tokenUsage.completionTokens} output = ${tokenUsage.totalTokens} total`);
+    }
+
+    return tokenUsage ? { response: responseText, tokenUsage } : responseText;
   }
 
   async callOpenAI(prompt) {
@@ -241,7 +274,11 @@ class AIService {
       questionFormat = `Each question should require a short written answer (1-3 sentences)`;
     } else if (type === 'structured_essay') {
       typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions.`;
-      questionFormat = `Each question should require a structured written answer with multiple parts`;
+      questionFormat = `IMPORTANT: Each question MUST have multiple parts labeled as a), b), c), etc. Format the question text with parts on separate lines or clearly separated. Example format:
+"Main question statement here?
+a) First part of the question
+b) Second part of the question
+c) Third part of the question"`;
     } else if (type === 'mixed') {
       typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
       questionFormat = `Include both multiple choice questions (with 4 options A, B, C, D) and short written answer questions`;
@@ -416,17 +453,18 @@ Provide a complete, well-formatted response that helps students truly understand
 
 // Factory function to create AI service instance
 const createAIService = async () => {
-  const AIConfig = require('../models/AIConfig');
+  const APIRotationManager = require('../utils/apiRotation');
   
   try {
-    console.log('🔍 Looking for active AI configuration...');
-    const config = await AIConfig.findOne({ isActive: true }).select('+apiKey');
+    console.log('🔍 Looking for best available AI configuration (priority-based)...');
+    // Use APIRotationManager to get the best available config based on priority
+    const config = await APIRotationManager.getNextAvailableConfig();
     
     if (!config) {
-      throw new Error('No active AI configuration found. Please configure an AI service in the admin panel.');
+      throw new Error('No AI configuration found. Please configure an AI service in the admin panel.');
     }
     
-    console.log('✅ Found active AI configuration:', config.provider, '-', config.model);
+    console.log(`✅ Selected AI configuration: ${config.provider} - ${config.model} (Priority: ${config.priority})`);
     return new AIService(config);
   } catch (error) {
     console.error('❌ Error fetching AI configuration:', error.message);

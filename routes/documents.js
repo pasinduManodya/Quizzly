@@ -231,49 +231,30 @@ async function generateQuestionsFromChunks(text, options, aiService) {
 // Generate comprehensive questions covering ALL important points (for coverAllTopics mode)
 async function generateComprehensiveQuestionsFromChunks(chunks, options, aiService) {
   try {
-    console.log('🎯 COMPREHENSIVE COVERAGE MODE ACTIVATED');
+    console.log('🎯 COMPREHENSIVE COVERAGE MODE ACTIVATED for large PDF');
     const { type = 'mcq' } = options;
     
-    // Step 1: Identify ALL important points from each chunk
-    console.log('📋 Step 1: Identifying ALL important points from each chunk...');
-    const allImportantPoints = [];
+    // Combine all chunks for comprehensive analysis
+    const fullText = chunks.join('\n\n');
     
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      console.log(`🔍 Analyzing chunk ${i + 1}/${chunks.length} for important points...`);
-      
-      const importantPoints = await identifyImportantPointsFromChunk(chunk, model);
-      allImportantPoints.push(...importantPoints);
-      console.log(`✅ Found ${importantPoints.length} important points in chunk ${i + 1}`);
+    // Step 1: Extract all important points from the entire document
+    const importantPoints = await extractAllImportantPointsForCoverage(fullText, aiService);
+    
+    if (!importantPoints || importantPoints.length === 0) {
+      console.log('⚠️ No important points extracted from large PDF. Using fallback approach.');
+      return generateFallbackQuestions(fullText, options);
     }
     
-    console.log(`📊 Total important points identified: ${allImportantPoints.length}`);
+    console.log(`📊 Found ${importantPoints.length} important points to cover across ${chunks.length} chunks`);
     
-    // Step 2: Generate questions to cover ALL identified points
-    console.log('❓ Step 2: Generating questions to cover ALL important points...');
-    const allQuestions = [];
+    // Step 2: Generate questions to cover all points
+    const questions = await generateQuestionsToCoerAllPoints(fullText, importantPoints, options, aiService);
     
-    // Process each chunk to generate questions for its important points
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      console.log(`📝 Generating questions for chunk ${i + 1}/${chunks.length}...`);
-      
-      const chunkQuestions = await generateQuestionsForImportantPoints(chunk, {
-        type,
-        chunkIndex: i + 1,
-        totalChunks: chunks.length,
-        targetPoints: allImportantPoints.filter(point => point.chunkIndex === i + 1)
-      }, model);
-      
-      allQuestions.push(...chunkQuestions);
-      console.log(`✅ Generated ${chunkQuestions.length} questions for chunk ${i + 1}`);
-    }
-    
-    console.log(`🎉 COMPREHENSIVE COVERAGE COMPLETE: Generated ${allQuestions.length} questions covering ${allImportantPoints.length} important points`);
-    return allQuestions;
+    console.log(`🎉 COMPREHENSIVE COVERAGE COMPLETE: Generated ${questions.length} questions covering ALL important points`);
+    return questions;
     
   } catch (error) {
-    console.error('Error in comprehensive coverage:', error);
+    console.error('Error in comprehensive coverage for large PDF:', error);
     // Fallback to regular processing
     return generateFallbackQuestions(chunks.join('\n\n'), options);
   }
@@ -349,7 +330,7 @@ async function generateQuestionsForImportantPoints(chunkText, options, aiService
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
     } else if (type === 'structured_essay') {
-      typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions.`;
+      typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions. CRITICAL: Each question MUST have multiple parts labeled as a), b), c), etc. Format the question with parts on separate lines or clearly separated.`;
     } else {
       typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
     }
@@ -445,10 +426,80 @@ async function generateQuestionsForImportantPoints(chunkText, options, aiService
   }
 }
 
-// Generate comprehensive questions for small PDFs (coverAllTopics mode)
-async function generateComprehensiveQuestionsForSmallPDF(text, options, model) {
+// Step 1: Extract ALL important points from the document
+async function extractAllImportantPointsForCoverage(text, aiService) {
   try {
-    console.log('🎯 COMPREHENSIVE COVERAGE MODE for small PDF');
+    console.log('📋 Step 1: Extracting ALL important points from document...');
+    
+    const maxTextLength = 50000;
+    const textToProcess = text.length > maxTextLength 
+      ? text.substring(0, maxTextLength) + '\n\n[... Additional content continues ...]'
+      : text;
+    
+    const prompt = `You are an expert educational content analyzer. Your task is to extract EVERY important point from this study material.
+
+CRITICAL: You MUST identify ALL important points - do not miss any. Be exhaustive.
+
+TYPES OF IMPORTANT POINTS TO EXTRACT:
+- Key concepts and theories
+- Important definitions and terminology  
+- Facts, statistics, and specific data
+- Formulas, equations, and calculations
+- Processes, procedures, and methodologies
+- Examples, case studies, and applications
+- Principles, rules, and guidelines
+- Relationships, connections, and dependencies
+- Historical context and background
+- Comparisons and contrasts
+- Cause-and-effect relationships
+- Classifications and categorizations
+- Step-by-step procedures
+- Important dates, names, places, and events
+
+Document Content:
+${textToProcess}
+
+Format your response as JSON:
+{
+  "importantPoints": [
+    {
+      "id": 1,
+      "point": "Brief description of the important point",
+      "category": "concept|definition|fact|formula|process|example|principle|relationship|procedure|other",
+      "topic": "Main topic this point belongs to",
+      "details": "More detailed explanation of the point"
+    }
+  ],
+  "totalPointsCount": number
+}
+
+IMPORTANT: Return ALL points you identify. The list should be comprehensive and exhaustive.`;
+
+    const result = await aiService.callAI(prompt);
+    let parsedContent;
+    
+    try {
+      parsedContent = extractJSONFromResponse(result.response);
+    } catch (error) {
+      console.error('⚠️ Could not parse important points JSON');
+      return [];
+    }
+    
+    const importantPoints = parsedContent.importantPoints || [];
+    console.log(`✅ Extracted ${importantPoints.length} important points`);
+    
+    return importantPoints;
+  } catch (error) {
+    console.error('❌ Error extracting important points:', error.message);
+    return [];
+  }
+}
+
+// Step 2: Generate questions to cover ALL extracted important points
+async function generateQuestionsToCoerAllPoints(text, importantPoints, options, aiService) {
+  try {
+    console.log(`📝 Step 2: Generating questions to cover ALL ${importantPoints.length} important points...`);
+    
     const { type = 'mcq' } = options;
     
     // Build type instructions
@@ -458,79 +509,73 @@ async function generateComprehensiveQuestionsForSmallPDF(text, options, model) {
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
     } else if (type === 'structured_essay') {
-      typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions.`;
+      typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions. CRITICAL: Each question MUST have multiple parts labeled as a), b), c), etc. Format the question with parts on separate lines or clearly separated.`;
     } else {
       typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
     }
-
-    const prompt = `
-    Follow these steps carefully and in strict order:
-
-    1. *Read the entire PDF completely first.*  
-       Do not generate or list any questions until you have read and analyzed the COMPLETE result.response from beginning to end.
-       This includes ALL pages, ALL sections, ALL topics, and ALL details in the document.
-
-    2. *Identify ALL important points* — include key facts, definitions, concepts, examples, processes, formulas, and other essential ideas from the PDF.  
-       - Internally identify EVERY important point - don't miss any
-       - Group points by their respective *topics or subtopics* within the lesson
-       - Be comprehensive - it's better to include more points than to miss important ones
-
-    3. *Generate questions to cover ALL identified important points:*
-       - Generate as many questions as needed to cover EVERY important point
-       - Do NOT limit the number of questions - focus on comprehensive coverage
-       - Each question should test understanding of one or more important points
-       - Ensure questions cover ALL topics, ALL sections, and ALL important concepts
-       - Vary the question types (conceptual, factual, applied, or analytical)
-
-    4. *Output only the final questions.*
-       - Do not show your internal reasoning, point lists, or summaries.  
-       - Present only the final, high-quality, contextually accurate questions.
-
-    Your goal: Generate as many questions as needed to cover ALL important points in the document. The number of questions doesn't matter - only comprehensive coverage matters.
-
-    ${typeInstructions}
     
-    For multiple choice questions:
-    - Provide 4 options (A, B, C, D)
-    - Mark the correct answer
-    - Include a comprehensive explanation that covers:
-      * Why the correct answer is right
-      * Why other options are wrong
-      * Key concepts and principles involved
-      * Real-world applications or examples
+    // Build the points checklist
+    const pointsChecklist = importantPoints
+      .map((p, i) => `${i + 1}. [${p.category}] ${p.point}`)
+      .join('\n');
     
-    For short/essay/structured questions:
-    - Ask questions that require 1-3 sentence answers
-    - Provide the expected answer
-    - Include a comprehensive explanation that covers:
-      * Detailed explanation of the concept
-      * Key principles and theories
-      * Practical applications
-      * Related concepts
+    const maxTextLength = 50000;
+    const textToProcess = text.length > maxTextLength 
+      ? text.substring(0, maxTextLength) + '\n\n[... Additional content continues ...]'
+      : text;
     
-    Study Material:
-    ${text} // Complete PDF result.response - analyze the entire document
-    
-    Format your response as JSON:
+    const prompt = `You are an expert educational content creator. Your task is to generate questions that cover ALL the important points listed below.
+
+CRITICAL REQUIREMENT: You MUST create questions that cover EVERY single important point. Do not skip any point.
+
+IMPORTANT POINTS TO COVER (${importantPoints.length} total):
+${pointsChecklist}
+
+INSTRUCTIONS:
+1. Read the study material completely
+2. For EACH important point listed above, create one or more questions that test understanding of that point
+3. Generate as many questions as needed to ensure ALL points are covered
+4. Do NOT limit the number of questions - comprehensive coverage is the priority
+5. Each question should clearly test one or more of the listed important points
+6. Vary question types (conceptual, factual, applied, analytical) to maintain engagement
+
+${typeInstructions}
+
+For multiple choice questions:
+- Provide 4 options (A, B, C, D)
+- Mark the correct answer
+- Include a comprehensive explanation
+
+For short/essay questions:
+- Ask questions that require 1-3 sentence answers
+- Provide the expected answer
+- Include a comprehensive explanation
+
+Study Material:
+${textToProcess}
+
+Format your response as JSON:
+{
+  "questions": [
     {
-      "questions": [
-        {
-          "type": "mcq" | "short",
-          "question": "Question text?",
-          "options": ["Option A", "Option B", "Option C", "Option D"], // only for mcq
-          "correctAnswer": "Expected answer or the correct option value",
-          "explanation": "Comprehensive explanation"
-        }
-      ]
+      "type": "mcq" | "short",
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"], // only for mcq
+      "correctAnswer": "Expected answer or the correct option value",
+      "explanation": "Comprehensive explanation",
+      "coversPoints": [1, 2, 5] // indices of important points this question covers
     }
-    `;
+  ],
+  "coverageReport": {
+    "totalQuestionsGenerated": number,
+    "pointsCovered": [1, 2, 3, ...], // indices of points that have questions
+    "pointsMissed": [4, 6, ...] // indices of points without questions (if any)
+  }
+}`;
 
     console.log('Sending comprehensive coverage request to AI service...');
     const result = await aiService.callAI(prompt);
     
-    console.log('AI response received for comprehensive coverage, length:', result.response.length);
-    
-    // Clean up the response to extract JSON
     let parsedContent;
     try {
       parsedContent = extractJSONFromResponse(result.response);
@@ -538,19 +583,22 @@ async function generateComprehensiveQuestionsForSmallPDF(text, options, model) {
       console.error('JSON parsing error:', error);
       throw new Error('Invalid response format from AI service');
     }
-    console.log('Questions parsed successfully for comprehensive coverage:', parsedContent.questions.length);
+    
+    const questions = parsedContent.questions || [];
+    const coverageReport = parsedContent.coverageReport || {};
+    
+    console.log(`✅ Generated ${questions.length} questions`);
+    console.log(`📊 Coverage Report:`, coverageReport);
     
     // Normalize types according to our frontend schema
-    let normalized = (parsedContent.questions || []).map(q => {
+    let normalized = questions.map(q => {
       const qt = (q.type || '').toLowerCase();
       let mappedType = qt;
-      // Map AI response types to our frontend types
       if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
         mappedType = 'short';
       } else if (qt.includes('mcq') || qt.includes('multiple')) {
         mappedType = 'mcq';
       } else {
-        // If no type specified, use the requested type from options
         mappedType = options.type === 'essay' || options.type === 'structured_essay' ? 'short' : 'mcq';
       }
       
@@ -559,16 +607,94 @@ async function generateComprehensiveQuestionsForSmallPDF(text, options, model) {
         question: q.question || '',
         options: convertOptionsToArray(q.options || {}),
         correctAnswer: convertCorrectAnswerToString(q.correctAnswer),
-        explanation: q.explanation || ''
+        explanation: q.explanation || '',
+        coversPoints: q.coversPoints || []
       };
     });
+    
+    // If some points are missed, generate additional questions for them
+    if (coverageReport.pointsMissed && coverageReport.pointsMissed.length > 0) {
+      console.log(`⚠️ ${coverageReport.pointsMissed.length} points not covered. Generating additional questions...`);
+      
+      const missedPoints = coverageReport.pointsMissed
+        .map(idx => importantPoints[idx])
+        .filter(p => p)
+        .map((p, i) => `${i + 1}. [${p.category}] ${p.point}: ${p.details}`)
+        .join('\n');
+      
+      const additionalPrompt = `Generate questions to cover these specific important points that were missed:
+
+${missedPoints}
+
+Study Material:
+${textToProcess}
+
+${typeInstructions}
+
+Generate as many questions as needed to cover ALL these points. Format as JSON with "questions" array.`;
+
+      try {
+        const additionalResult = await aiService.callAI(additionalPrompt);
+        const additionalParsed = extractJSONFromResponse(additionalResult.response);
+        const additionalQuestions = (additionalParsed.questions || []).map(q => {
+          const qt = (q.type || '').toLowerCase();
+          let mappedType = qt;
+          if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
+            mappedType = 'short';
+          } else if (qt.includes('mcq') || qt.includes('multiple')) {
+            mappedType = 'mcq';
+          } else {
+            mappedType = options.type === 'essay' || options.type === 'structured_essay' ? 'short' : 'mcq';
+          }
+          
+          return {
+            type: mappedType,
+            question: q.question || '',
+            options: convertOptionsToArray(q.options || {}),
+            correctAnswer: convertCorrectAnswerToString(q.correctAnswer),
+            explanation: q.explanation || '',
+            coversPoints: q.coversPoints || []
+          };
+        });
+        
+        normalized = [...normalized, ...additionalQuestions];
+        console.log(`✅ Added ${additionalQuestions.length} additional questions for missed points`);
+      } catch (error) {
+        console.error('Error generating additional questions:', error);
+      }
+    }
     
     console.log(`🎉 COMPREHENSIVE COVERAGE COMPLETE: Generated ${normalized.length} questions covering ALL important points`);
     return normalized;
     
   } catch (error) {
+    console.error('Error generating questions for all points:', error);
+    throw error;
+  }
+}
+
+// Generate comprehensive questions for small PDFs (coverAllTopics mode)
+async function generateComprehensiveQuestionsForSmallPDF(text, options, aiService) {
+  try {
+    console.log('🎯 COMPREHENSIVE COVERAGE MODE for small PDF');
+    
+    // Step 1: Extract all important points
+    const importantPoints = await extractAllImportantPointsForCoverage(text, aiService);
+    
+    if (!importantPoints || importantPoints.length === 0) {
+      console.log('⚠️ No important points extracted. Using fallback approach.');
+      return generateFallbackQuestions(text, options);
+    }
+    
+    console.log(`📊 Found ${importantPoints.length} important points to cover`);
+    
+    // Step 2: Generate questions to cover all points
+    const questions = await generateQuestionsToCoerAllPoints(text, importantPoints, options, aiService);
+    
+    return questions;
+    
+  } catch (error) {
     console.error('Error in comprehensive coverage for small PDF:', error);
-    // Fallback to regular processing
     return generateFallbackQuestions(text, options);
   }
 }
@@ -585,7 +711,7 @@ async function generateQuestionsFromSingleChunk(chunkText, options, aiService) {
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
     } else if (type === 'structured_essay') {
-      typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions.`;
+      typeInstructions = `Generate only structured essay questions that require multi-part answers (but still provide an expected concise answer and explanation). Do NOT include any multiple choice questions. CRITICAL: Each question MUST have multiple parts labeled as a), b), c), etc. Format the question with parts on separate lines or clearly separated.`;
     } else {
       typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
     }
@@ -702,6 +828,8 @@ async function generateQuestionsFromSingleChunk(chunkText, options, aiService) {
 
 // Generate questions from text using configurable AI
 async function generateQuestions(text, options = {}) {
+  let totalTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  
   try {
     console.log('Starting AI question generation...');
     console.log('Text length:', text.length);
@@ -711,70 +839,82 @@ async function generateQuestions(text, options = {}) {
 
     const { type = 'mcq', numQuestions = 8, coverAllTopics = false } = options;
 
+    let questions;
+    
     // Check if comprehensive coverage is requested
     if (coverAllTopics) {
       console.log('🎯 Comprehensive coverage mode: Covering ALL important points...');
       
       // For small PDFs, process directly
       if (text.length <= 25000) {
-        return await generateComprehensiveQuestionsForSmallPDF(text, options, aiService);
+        const result = await generateComprehensiveQuestionsForSmallPDF(text, options, aiService);
+        questions = result.questions || result;
+        totalTokenUsage = result.tokenUsage || totalTokenUsage;
       } else {
         // For large PDFs, use chunked processing
         console.log(`📄 Large PDF detected (${text.length} chars). Using chunked comprehensive processing...`);
-        return await generateQuestionsFromChunks(text, options, aiService);
+        const result = await generateQuestionsFromChunks(text, options, aiService);
+        questions = result.questions || result;
+        totalTokenUsage = result.tokenUsage || totalTokenUsage;
       }
-    }
-
-    // Check if text is too long for single API call
-    const maxCharsPerCall = 25000; // ~6,250 tokens (safe limit)
-    if (text.length > maxCharsPerCall) {
+    } else if (text.length > 25000) {
+      // Check if text is too long for single API call
       console.log(`📄 Large PDF detected (${text.length} chars). Using chunked processing...`);
-      return await generateQuestionsFromChunks(text, options, aiService);
-    }
-
-    // Generate questions using the AI service
-    const rawResponse = await aiService.generateQuiz(text, options);
-    
-    // Parse the JSON response
-    let parsedContent;
-    try {
-      parsedContent = extractJSONFromResponse(rawResponse);
-    } catch (error) {
-      console.error('JSON parsing error in generateQuestions:', error);
-      throw new Error('Invalid response format from AI service');
-    }
-    
-    // Normalize types according to our frontend schema
-    let normalized = (parsedContent.questions || []).map(q => {
-      const qt = (q.type || '').toLowerCase();
-      let mappedType = qt;
+      const result = await generateQuestionsFromChunks(text, options, aiService);
+      questions = result.questions || result;
+      totalTokenUsage = result.tokenUsage || totalTokenUsage;
+    } else {
+      // Generate questions using the AI service (with token tracking)
+      const quizResult = await aiService.generateQuizWithTokens(text, options);
+      const rawResponse = quizResult.response;
+      const tokenUsage = quizResult.tokenUsage;
+      totalTokenUsage = tokenUsage;
       
-      // Map AI response types to our frontend types
-      if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
-        mappedType = 'short';
-      } else if (qt.includes('mcq') || qt.includes('multiple')) {
-        mappedType = 'mcq';
-      } else {
-        // If no type specified, use the requested type from options
-        mappedType = options.type === 'essay' || options.type === 'structured_essay' ? 'short' : 'mcq';
+      // Parse the JSON response
+      let parsedContent;
+      try {
+        parsedContent = extractJSONFromResponse(rawResponse);
+      } catch (error) {
+        console.error('JSON parsing error in generateQuestions:', error);
+        throw new Error('Invalid response format from AI service');
       }
       
-      return {
-        type: mappedType,
-        question: q.question || '',
-        options: convertOptionsToArray(q.options || {}),
-        correctAnswer: convertCorrectAnswerToString(q.correct || q.correctAnswer),
-        explanation: q.explanation || ''
-      };
-    });
-    
-    // Limit to requested number of questions
-    const count = options.numQuestions || 8;
-    if (normalized.length > count) {
-      normalized = normalized.slice(0, count);
+      // Normalize types according to our frontend schema
+      questions = (parsedContent.questions || []).map(q => {
+        const qt = (q.type || '').toLowerCase();
+        let mappedType = qt;
+        
+        // Map AI response types to our frontend types
+        if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
+          mappedType = 'short';
+        } else if (qt.includes('mcq') || qt.includes('multiple')) {
+          mappedType = 'mcq';
+        } else {
+          // If no type specified, use the requested type from options
+          mappedType = options.type === 'essay' || options.type === 'structured_essay' ? 'short' : 'mcq';
+        }
+        
+        return {
+          type: mappedType,
+          question: q.question || '',
+          options: convertOptionsToArray(q.options || {}),
+          correctAnswer: convertCorrectAnswerToString(q.correct || q.correctAnswer),
+          explanation: q.explanation || ''
+        };
+      });
+      
+      // Limit to requested number of questions
+      const count = options.numQuestions || 8;
+      if (questions.length > count) {
+        questions = questions.slice(0, count);
+      }
     }
     
-    return normalized;
+    // Return questions with token usage data
+    return {
+      questions: questions,
+      tokenUsage: totalTokenUsage
+    };
   } catch (error) {
     console.error('AI service error:', error);
     console.error('Error details:', {
@@ -834,8 +974,8 @@ function generateFallbackQuestions(text, options = {}) {
     }
     
     if (type === 'essay' || type === 'structured_essay' || type === 'mixed') {
-      // Generate essay question
-      const question = `Explain the concept mentioned in: "${sentence.substring(0, 80)}..."`;
+      // Generate essay question - use full sentence without truncation
+      const question = `Explain the concept mentioned in: "${sentence.trim()}"`;
       questions.push({
         type: 'short',
         question: question,
@@ -857,7 +997,10 @@ function generateFallbackQuestions(text, options = {}) {
   }
   
   console.log(`✅ Generated ${questions.length} fallback questions`);
-  return questions;
+  return {
+    questions: questions,
+    tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+  };
 }
 
 // Generate a concise comprehensive summary using configurable AI
@@ -938,12 +1081,20 @@ Provide a complete, well-formatted, professional summary following the structure
     console.log('📝 Calling AI service for summary...');
     const result = await aiService.callAI(prompt);
     console.log('✅ AI summary generated successfully');
+    console.log('🔍 Result structure:', {
+      hasResponse: !!result.response,
+      hasTokenUsage: !!result.tokenUsage,
+      tokenUsageData: result.tokenUsage
+    });
     return result; // Return the full result object with response and tokenUsage
   } catch (error) {
     console.error('❌ Summary generation error:', error.message);
     console.error('❌ Error details:', error);
     console.log('🔄 Falling back to basic summary...');
-    return generateFallbackSummary(text);
+    return {
+      response: generateFallbackSummary(text),
+      tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+    };
   }
 }
 
@@ -1436,7 +1587,7 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
     
     // Check if summary is already cached
     if (document.summary && document.summary.trim().length > 0) {
-      console.log('✅ Returning cached summary');
+      console.log('✅ Returning cached summary (no tokens consumed for cached content)');
       return res.json({ summary: document.summary, cached: true });
     }
     
@@ -1456,6 +1607,12 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
     }
     const result = await generateSummary(textToUse);
     
+    console.log('🔍 Result from generateSummary:', {
+      hasResponse: !!result?.response,
+      hasTokenUsage: !!result?.tokenUsage,
+      tokenUsageKeys: result?.tokenUsage ? Object.keys(result.tokenUsage) : 'N/A'
+    });
+    
     // Cache the summary
     document.summary = result.response;
     await document.save();
@@ -1463,9 +1620,35 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
     
     // Consume the actual tokens used
     const user = req.userWithTokens; // User object with token methods from middleware
-    if (user && result.tokenUsage) {
-      await user.consumeTokens(result.tokenUsage.totalTokens);
-      console.log(`📊 Consumed ${result.tokenUsage.totalTokens} tokens for summary generation`);
+    console.log('🔍 User available:', !!user, 'User email:', user?.email);
+    
+    if (user && result && result.tokenUsage) {
+      console.log(`🔍 Token data received:`, {
+        totalTokens: result.tokenUsage.totalTokens,
+        promptTokens: result.tokenUsage.promptTokens,
+        completionTokens: result.tokenUsage.completionTokens
+      });
+      
+      const inputTokens = result.tokenUsage.promptTokens || 0;
+      const outputTokens = result.tokenUsage.completionTokens || 0;
+      const totalTokens = result.tokenUsage.totalTokens || 0;
+      
+      console.log(`📝 About to consume tokens:`, { totalTokens, inputTokens, outputTokens });
+      
+      const consumeResult = await user.consumeTokens(
+        totalTokens,
+        inputTokens,
+        outputTokens
+      );
+      
+      console.log(`✅ Tokens consumed successfully`);
+      console.log(`📊 Tokens - Input: ${consumeResult.dailyInputTokens.toLocaleString()} | Output: ${consumeResult.dailyOutputTokens.toLocaleString()} | Total: ${consumeResult.dailyUsed.toLocaleString()}/${consumeResult.dailyLimit.toLocaleString()}`);
+    } else {
+      console.log('⚠️  Skipping token consumption:', {
+        userExists: !!user,
+        resultExists: !!result,
+        tokenUsageExists: !!result?.tokenUsage
+      });
     }
     
     res.json({ summary: result.response, cached: false });
@@ -1506,10 +1689,30 @@ router.post('/:id/regenerate', auth, async (req, res) => {
     if (isUsingCondensed) {
       console.log(`💰 Cost savings: ${Math.round((1 - textToUse.length / document.extractedText.length) * 100)}% reduction in tokens`);
     }
-    const questions = await generateQuestions(textToUse, options);
+    const result = await generateQuestions(textToUse, options);
+    const questions = result.questions;
+    const tokenUsage = result.tokenUsage;
 
     document.questions = questions;
     await document.save();
+
+    // Consume tokens for question generation
+    const user = req.user;
+    if (user && tokenUsage) {
+      try {
+        const userDoc = await User.findById(user._id);
+        if (userDoc) {
+          const consumeResult = await userDoc.consumeTokens(
+            tokenUsage.totalTokens || 0,
+            tokenUsage.promptTokens || 0,
+            tokenUsage.completionTokens || 0
+          );
+          console.log(`📊 Tokens - Input: ${consumeResult.dailyInputTokens.toLocaleString()} | Output: ${consumeResult.dailyOutputTokens.toLocaleString()} | Total: ${consumeResult.dailyUsed.toLocaleString()}/${consumeResult.dailyLimit.toLocaleString()}`);
+        }
+      } catch (error) {
+        console.error('Error consuming tokens:', error);
+      }
+    }
 
     res.json({
       message: 'Questions regenerated successfully',
@@ -1756,8 +1959,12 @@ Provide a complete, well-formatted, simplified summary that anyone can understan
       // Consume the actual tokens used
       const user = req.userWithTokens; // User object with token methods from middleware
       if (user && result.tokenUsage) {
-        await user.consumeTokens(result.tokenUsage.totalTokens);
-        console.log(`📊 Consumed ${result.tokenUsage.totalTokens} tokens for simplified summary generation`);
+        const consumeResult = await user.consumeTokens(
+          result.tokenUsage.totalTokens,
+          result.tokenUsage.promptTokens || 0,
+          result.tokenUsage.completionTokens || 0
+        );
+        console.log(`📊 Tokens - Input: ${consumeResult.dailyInputTokens.toLocaleString()} | Output: ${consumeResult.dailyOutputTokens.toLocaleString()} | Total: ${consumeResult.dailyUsed.toLocaleString()}/${consumeResult.dailyLimit.toLocaleString()}`);
       }
       
       res.json({ summary: result.response, cached: false }); // Extract the response string from the result object
@@ -1917,8 +2124,12 @@ Provide a complete, well-formatted, shorter summary that maintains essential inf
       // Consume the actual tokens used
       const user = req.userWithTokens; // User object with token methods from middleware
       if (user && result.tokenUsage) {
-        await user.consumeTokens(result.tokenUsage.totalTokens);
-        console.log(`📊 Consumed ${result.tokenUsage.totalTokens} tokens for shorter summary generation`);
+        const consumeResult = await user.consumeTokens(
+          result.tokenUsage.totalTokens,
+          result.tokenUsage.promptTokens || 0,
+          result.tokenUsage.completionTokens || 0
+        );
+        console.log(`📊 Tokens - Input: ${consumeResult.dailyInputTokens.toLocaleString()} | Output: ${consumeResult.dailyOutputTokens.toLocaleString()} | Total: ${consumeResult.dailyUsed.toLocaleString()}/${consumeResult.dailyLimit.toLocaleString()}`);
       }
 
       res.json({ summary: result.response, cached: false }); // Extract the response string from the result object

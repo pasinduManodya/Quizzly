@@ -3,8 +3,14 @@ import axios from 'axios';
 
 interface TokenUsage {
   totalUsed: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
   dailyUsed: number;
+  dailyInputTokens: number;
+  dailyOutputTokens: number;
   monthlyUsed: number;
+  monthlyInputTokens: number;
+  monthlyOutputTokens: number;
   dailyRemaining: number;
   monthlyRemaining: number;
   dailyLimit: number;
@@ -52,21 +58,39 @@ const UsersTab: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    fetchUsers(true);
+    
+    // Set up auto-refresh interval for real-time token usage updates
+    const refreshInterval = setInterval(() => {
+      if (autoRefreshEnabled) {
+        fetchUsers(false);
+      }
+    }, 2000); // Refresh every 2 seconds for real-time updates
+    
+    return () => clearInterval(refreshInterval);
+  }, [autoRefreshEnabled, selectedUser, showUserModal]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (showLoading: boolean = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const response = await axios.get('/api/admin/users');
       setUsers(response.data.data.users);
+      
+      // Update selected user if modal is open
+      if (selectedUser && showUserModal) {
+        const updatedUser = response.data.data.users.find((u: User) => u.id === selectedUser.id);
+        if (updatedUser) {
+          setSelectedUser(updatedUser);
+        }
+      }
     } catch (error) {
       setError('Failed to fetch users');
       console.error('Error fetching users:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -209,7 +233,7 @@ const UsersTab: React.FC = () => {
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-red-600">{error}</p>
         <button 
-          onClick={fetchUsers}
+          onClick={() => fetchUsers(true)}
           className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Retry
@@ -297,10 +321,20 @@ const UsersTab: React.FC = () => {
             {sortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}
           </button>
           <button
-            onClick={fetchUsers}
+            onClick={() => fetchUsers(true)}
             className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
           >
             🔄 Refresh
+          </button>
+          <button
+            onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+            className={`px-3 py-1 text-sm rounded font-medium ${
+              autoRefreshEnabled
+                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {autoRefreshEnabled ? '⏱️ Auto-Refresh ON' : '⏸️ Auto-Refresh OFF'}
           </button>
         </div>
       </div>
@@ -398,40 +432,76 @@ const UsersTab: React.FC = () => {
                     </div>
                   </td>
                   
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">Daily:</span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              user.tokenUsage.dailyPercentage > 90 ? 'bg-red-500' :
-                              user.tokenUsage.dailyPercentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                            }`}
-                            style={{ width: `${Math.min(user.tokenUsage.dailyPercentage, 100)}%` }}
-                          ></div>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
+                    <div className="space-y-2">
+                      <div>
+                        <div className="font-semibold text-gray-700 mb-1">Daily:</div>
+                        <div className="ml-2 space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Input:</span>
+                            <span className="text-gray-700 font-medium">{user.tokenUsage.dailyInputTokens?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Output:</span>
+                            <span className="text-gray-700 font-medium">{user.tokenUsage.dailyOutputTokens?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-1">
+                            <span className="text-gray-600 font-semibold">Total:</span>
+                            <span className="text-gray-800 font-bold">{user.tokenUsage.dailyUsed?.toLocaleString() || 0}/{user.tokenUsage.dailyLimit?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                user.tokenUsage.dailyPercentage > 90 ? 'bg-red-500' :
+                                user.tokenUsage.dailyPercentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(user.tokenUsage.dailyPercentage || 0, 100)}%` }}
+                            ></div>
+                          </div>
                         </div>
-                        <span className="text-xs text-gray-600">
-                          {user.tokenUsage.dailyUsed}/{user.tokenUsage.dailyLimit}
-                        </span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">Monthly:</span>
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              user.tokenUsage.monthlyPercentage > 90 ? 'bg-red-500' :
-                              user.tokenUsage.monthlyPercentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
-                            }`}
-                            style={{ width: `${Math.min(user.tokenUsage.monthlyPercentage, 100)}%` }}
-                          ></div>
+                      
+                      <div>
+                        <div className="font-semibold text-gray-700 mb-1">Monthly:</div>
+                        <div className="ml-2 space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Input:</span>
+                            <span className="text-gray-700 font-medium">{user.tokenUsage.monthlyInputTokens?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Output:</span>
+                            <span className="text-gray-700 font-medium">{user.tokenUsage.monthlyOutputTokens?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-1">
+                            <span className="text-gray-600 font-semibold">Total:</span>
+                            <span className="text-gray-800 font-bold">{user.tokenUsage.monthlyUsed?.toLocaleString() || 0}/{user.tokenUsage.monthlyLimit?.toLocaleString() || 0}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                user.tokenUsage.monthlyPercentage > 90 ? 'bg-red-500' :
+                                user.tokenUsage.monthlyPercentage > 70 ? 'bg-yellow-500' : 'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(user.tokenUsage.monthlyPercentage || 0, 100)}%` }}
+                            ></div>
+                          </div>
                         </div>
-                        <span className="text-xs text-gray-600">
-                          {user.tokenUsage.monthlyUsed}/{user.tokenUsage.monthlyLimit}
-                        </span>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Total: {user.tokenUsage.totalUsed.toLocaleString()} tokens
+                      
+                      <div className="border-t pt-1">
+                        <span className="text-gray-600">Total All Time:</span>
+                        <div className="flex justify-between mt-1">
+                          <span className="text-gray-600">Input:</span>
+                          <span className="text-gray-700 font-medium">{user.tokenUsage.totalInputTokens?.toLocaleString() || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Output:</span>
+                          <span className="text-gray-700 font-medium">{user.tokenUsage.totalOutputTokens?.toLocaleString() || 0}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-1">
+                          <span className="text-gray-600 font-semibold">Total:</span>
+                          <span className="text-gray-800 font-bold">{user.tokenUsage.totalUsed?.toLocaleString() || 0}</span>
+                        </div>
                       </div>
                     </div>
                   </td>

@@ -165,6 +165,27 @@ function isAnswerCorrect(question, userAnswerRaw) {
 // Enhanced essay grading using AI with explicit point identification
 async function gradeEssayAnswer(correctAnswer, userAnswer) {
   try {
+    // If user answer is empty or too short, return immediate poor grade
+    if (!userAnswer || userAnswer.trim().length < 2) {
+      console.log('⚠️ User answer is empty or too short, returning poor grade');
+      return {
+        totalPoints: 1,
+        pointsCovered: 0,
+        score: 0,
+        grade: 'Poor',
+        allCorrectPoints: [{
+          pointNumber: 1,
+          point: 'Student provided no meaningful answer',
+          covered: false,
+          studentMention: ''
+        }],
+        missedPoints: ['Student provided no meaningful answer'],
+        feedback: 'No answer was provided. Please provide a complete answer to be graded.',
+        strengths: 'N/A',
+        improvements: 'Please provide a detailed answer addressing the question.'
+      };
+    }
+
     const aiService = await createAIService();
     const prompt = `You are grading a student's essay answer using a detailed point-based system.
 
@@ -245,13 +266,76 @@ Correct Answer:\n${correctAnswer}\n\nStudent Answer:\n${userAnswer}`;
 
     const result = await aiService.callAI(prompt);
     const text = result.response;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Invalid AI response');
-    const parsed = JSON.parse(jsonMatch[0]);
     
-    // Validate the response
-    if (!parsed.totalPoints || !parsed.pointsCovered || !parsed.score || !parsed.allCorrectPoints) {
-      throw new Error('Invalid grading response from AI');
+    console.log('🔍 AI Response for grading:', text.substring(0, 200));
+    
+    // Try to extract JSON from the response
+    let jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('❌ No JSON found in AI response. Full response:', text);
+      // Return a basic grading if JSON extraction fails
+      return {
+        totalPoints: 1,
+        pointsCovered: 0,
+        score: 0,
+        grade: 'Poor',
+        allCorrectPoints: [{
+          pointNumber: 1,
+          point: 'Unable to parse AI response',
+          covered: false,
+          studentMention: ''
+        }],
+        missedPoints: ['Unable to parse AI response'],
+        feedback: 'The AI service returned an unexpected response format. Your answer appears incomplete or unclear.',
+        strengths: 'Unable to evaluate due to response parsing error.',
+        improvements: 'Please provide a more detailed and clear answer.'
+      };
+    }
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      console.error('❌ Failed to parse JSON:', jsonMatch[0]);
+      // Return a basic grading if JSON parsing fails
+      return {
+        totalPoints: 1,
+        pointsCovered: 0,
+        score: 0,
+        grade: 'Poor',
+        allCorrectPoints: [{
+          pointNumber: 1,
+          point: 'Parsing error in AI response',
+          covered: false,
+          studentMention: ''
+        }],
+        missedPoints: ['Parsing error in AI response'],
+        feedback: 'The AI service encountered a parsing error. Your answer may not have been properly evaluated.',
+        strengths: 'Unable to evaluate due to parsing error.',
+        improvements: 'Please try again with a clearer answer.'
+      };
+    }
+    
+    // Validate the response - provide defaults if missing
+    if (!parsed.totalPoints || !parsed.pointsCovered === undefined || parsed.score === undefined || !parsed.allCorrectPoints) {
+      console.warn('⚠️ AI response missing some fields, filling in defaults');
+      
+      // Ensure all required fields exist
+      if (!parsed.totalPoints) parsed.totalPoints = 1;
+      if (parsed.pointsCovered === undefined) parsed.pointsCovered = 0;
+      if (parsed.score === undefined) parsed.score = 0;
+      if (!parsed.allCorrectPoints) {
+        parsed.allCorrectPoints = [{
+          pointNumber: 1,
+          point: 'Main concept from correct answer',
+          covered: false,
+          studentMention: ''
+        }];
+      }
+      if (!parsed.missedPoints) parsed.missedPoints = ['All points were missed'];
+      if (!parsed.feedback) parsed.feedback = 'Your answer did not adequately address the question.';
+      if (!parsed.strengths) parsed.strengths = 'N/A';
+      if (!parsed.improvements) parsed.improvements = 'Please provide a more detailed answer addressing all key points.';
     }
     
     // Double-check the AI's counting logic

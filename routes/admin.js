@@ -36,35 +36,63 @@ router.get('/users', adminAuth, asyncHandler(async (req, res) => {
     quizCountMap[item._id.toString()] = item.count;
   });
 
+  // Load token limits for all users and get fresh token usage
+  const usersWithTokenLimits = await Promise.all(users.map(async (user) => {
+    try {
+      // Load fresh token limits based on subscription
+      await user.loadTokenLimits();
+    } catch (error) {
+      console.error(`Error loading token limits for user ${user._id}:`, error);
+    }
+    
+    // Get fresh token usage and save any reset changes
+    const tokenUsage = user.getTokenUsage();
+    await user.save().catch(err => console.error('Error saving user token reset:', err));
+    
+    // Log token usage for debugging
+    if (user.email === req.user?.email) {
+      console.log(`📊 Token usage for ${user.email}:`, {
+        dailyInputTokens: user.tokenUsage.dailyInputTokens,
+        dailyOutputTokens: user.tokenUsage.dailyOutputTokens,
+        monthlyInputTokens: user.tokenUsage.monthlyInputTokens,
+        monthlyOutputTokens: user.tokenUsage.monthlyOutputTokens,
+        totalInputTokens: user.tokenUsage.totalInputTokens,
+        totalOutputTokens: user.tokenUsage.totalOutputTokens
+      });
+    }
+    
+    return {
+      id: user._id,
+      email: user.email || 'Guest User',
+      fullName: user.getFullName(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      country: user.country,
+      role: user.role,
+      isGuest: user.isGuest,
+      isPro: user.isPro,
+      subscriptionType: user.subscriptionType,
+      subscriptionStatus: user.getSubscriptionStatus(),
+      subscriptionExpiry: user.subscriptionExpiry,
+      subscriptionStartDate: user.subscriptionStartDate,
+      paymentMethod: user.paymentMethod,
+      maxDocuments: user.maxDocuments,
+      documentsCount: user.documents.length,
+      totalQuizzesTaken: quizCountMap[user._id.toString()] || user.totalQuizzesTaken || 0,
+      totalDocumentsUploaded: user.totalDocumentsUploaded,
+      tokenUsage: tokenUsage,
+      createdAt: user.createdAt,
+      lastActivity: user.lastActivity,
+      lastLoginDate: user.lastLoginDate,
+      timezone: user.timezone
+    };
+  }));
+
   res.json({
     success: true,
     data: {
-      users: users.map(user => ({
-        id: user._id,
-        email: user.email || 'Guest User',
-        fullName: user.getFullName(),
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        country: user.country,
-        role: user.role,
-        isGuest: user.isGuest,
-        isPro: user.isPro,
-        subscriptionType: user.subscriptionType,
-        subscriptionStatus: user.getSubscriptionStatus(),
-        subscriptionExpiry: user.subscriptionExpiry,
-        subscriptionStartDate: user.subscriptionStartDate,
-        paymentMethod: user.paymentMethod,
-        maxDocuments: user.maxDocuments,
-        documentsCount: user.documents.length,
-        totalQuizzesTaken: quizCountMap[user._id.toString()] || user.totalQuizzesTaken || 0,
-        totalDocumentsUploaded: user.totalDocumentsUploaded,
-        tokenUsage: user.getTokenUsage(),
-        createdAt: user.createdAt,
-        lastActivity: user.lastActivity,
-        lastLoginDate: user.lastLoginDate,
-        timezone: user.timezone
-      }))
+      users: usersWithTokenLimits
     }
   });
 }));
@@ -922,6 +950,57 @@ router.get('/stats', adminAuth, asyncHandler(async (req, res) => {
   });
 }));
 
+// Fix all users with incorrect token limits
+router.post('/fix-token-limits', adminAuth, asyncHandler(async (req, res) => {
+  try {
+    // Find all users with the incorrect huge token limits
+    const usersToFix = await User.find({
+      $or: [
+        { 'tokenLimits.dailyLimit': 1000000 },
+        { 'tokenLimits.monthlyLimit': 10000000 }
+      ]
+    });
+
+    console.log(`🔧 Found ${usersToFix.length} users with incorrect token limits`);
+
+    // Fix each user
+    const fixedUsers = [];
+    for (const user of usersToFix) {
+      try {
+        await user.loadTokenLimits();
+        await user.save();
+        fixedUsers.push({
+          email: user.email,
+          newDailyLimit: user.tokenLimits.dailyLimit,
+          newMonthlyLimit: user.tokenLimits.monthlyLimit
+        });
+      } catch (error) {
+        console.error(`Error fixing user ${user.email}:`, error);
+      }
+    }
+
+    logger.info(`Admin ${req.user.email} fixed token limits for ${fixedUsers.length} users`, {
+      adminId: req.user._id,
+      fixedCount: fixedUsers.length
+    });
+
+    res.json({
+      success: true,
+      message: `Fixed token limits for ${fixedUsers.length} users`,
+      data: {
+        fixedUsers: fixedUsers
+      }
+    });
+  } catch (error) {
+    console.error('Error fixing token limits:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fixing token limits',
+      error: error.message
+    });
+  }
+}));
+
 // Give unlimited tokens to a specific user (for testing)
 router.post('/give-unlimited-tokens', adminAuth, asyncHandler(async (req, res) => {
   try {
@@ -948,18 +1027,19 @@ router.post('/give-unlimited-tokens', adminAuth, asyncHandler(async (req, res) =
       monthlyLimit: user.tokenLimits.monthlyLimit
     });
     
-    // Set unlimited tokens (very high values)
-    user.tokenLimits.dailyLimit = 1000000; // 1 million tokens per day
-    user.tokenLimits.monthlyLimit = 10000000; // 10 million tokens per month
+    // Load proper token limits based on subscription
+    await user.loadTokenLimits();
     
     // Reset current usage to 0
     user.tokenUsage.dailyTokensUsed = 0;
     user.tokenUsage.monthlyTokensUsed = 0;
     user.tokenUsage.totalTokensUsed = 0;
+    user.tokenUsage.lastDailyResetDate = new Date();
+    user.tokenUsage.lastTokenResetDate = new Date();
     
     await user.save();
     
-    logger.info(`Admin ${req.user.email} gave unlimited tokens to ${email}`, {
+    logger.info(`Admin ${req.user.email} reset token usage for ${email}`, {
       adminId: req.user._id,
       targetUser: user._id,
       targetEmail: email
@@ -967,7 +1047,7 @@ router.post('/give-unlimited-tokens', adminAuth, asyncHandler(async (req, res) =
     
     res.json({
       success: true,
-      message: `Unlimited token access granted to ${email}`,
+      message: `Token usage reset and limits updated for ${email}`,
       data: {
         email: user.email,
         tokenLimits: {
