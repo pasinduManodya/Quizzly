@@ -335,54 +335,56 @@ async function generateQuestionsForImportantPoints(chunkText, options, aiService
       typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
     }
 
-    const prompt = `
-    Your task is to generate questions that cover ALL the important points identified in this result.response chunk.
+    const prompt = `You are an expert educational content creator specializing in professional examinations. Your task is to generate high-quality questions that cover ALL the important points identified in this content chunk.
 
-    IMPORTANT: Generate as many questions as needed to cover ALL important points. Do NOT limit the number of questions.
+CRITICAL REQUIREMENT: Generate as many questions as needed to cover EVERY important point. Do NOT limit the number of questions.
 
-    Instructions:
-    1. Read the result.response completely
-    2. Identify ALL important points (facts, concepts, processes, formulas, examples, principles, applications)
-    3. Generate questions to cover EVERY important point
-    4. Each question should test understanding of one or more important points
-    5. Ensure comprehensive coverage - don't miss any important points
+INSTRUCTIONS:
+1. Read the content chunk completely
+2. Identify ALL important points (facts, concepts, processes, formulas, examples, principles, applications)
+3. Generate questions to cover EVERY important point
+4. Each question should test understanding of one or more important points
+5. Ensure comprehensive coverage - don't miss any important points
+6. Use professional, exam-style language
+7. Questions should be independent and not reference "according to the document"
+8. Test deeper understanding and application, not just memorization
 
-    ${typeInstructions}
-    
-    For multiple choice questions:
-    - Provide 4 options (A, B, C, D)
-    - Mark the correct answer
-    - Include a comprehensive explanation that covers:
-      * Why the correct answer is right
-      * Why other options are wrong
-      * Key concepts and principles involved
-      * Real-world applications or examples
-    
-    For short/essay/structured questions:
-    - Ask questions that require 1-3 sentence answers
-    - Provide the expected answer
-    - Include a comprehensive explanation that covers:
-      * Detailed explanation of the concept
-      * Key principles and theories
-      * Practical applications
-      * Related concepts
+${typeInstructions}
 
-    Content Chunk (Part ${chunkIndex} of ${totalChunks}):
-    ${chunkText}
-    
-    Format your response as JSON:
+For multiple choice questions:
+- Provide 4 options (A, B, C, D)
+- Mark the correct answer
+- Include a comprehensive explanation that covers:
+  * Why the correct answer is right
+  * Why other options are wrong
+  * Key concepts and principles involved
+  * Real-world applications or examples
+
+For short/essay/structured questions:
+- Ask questions that require 1-3 sentence answers
+- Provide the expected answer
+- Include a comprehensive explanation that covers:
+  * Detailed explanation of the concept
+  * Key principles and theories
+  * Practical applications
+  * Related concepts
+
+Content Chunk (Part ${chunkIndex} of ${totalChunks}):
+${chunkText}
+
+Format your response as JSON:
+{
+  "questions": [
     {
-      "questions": [
-        {
-          "type": "mcq" | "short",
-          "question": "Question text?",
-          "options": ["Option A", "Option B", "Option C", "Option D"], // only for mcq
-          "correctAnswer": "Expected answer or the correct option value",
-          "explanation": "Comprehensive explanation"
-        }
-      ]
+      "type": "mcq" | "short",
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"], // only for mcq
+      "correctAnswer": "Expected answer or the correct option value",
+      "explanation": "Comprehensive explanation"
     }
-    `;
+  ]
+}
+`;
 
     const result = await aiService.callAI(prompt);
     
@@ -524,7 +526,7 @@ async function generateQuestionsToCoerAllPoints(text, importantPoints, options, 
       ? text.substring(0, maxTextLength) + '\n\n[... Additional content continues ...]'
       : text;
     
-    const prompt = `You are an expert educational content creator. Your task is to generate questions that cover ALL the important points listed below.
+    const prompt = `You are an expert educational content creator specializing in professional examinations. Your task is to generate high-quality questions that cover ALL the important points listed below.
 
 CRITICAL REQUIREMENT: You MUST create questions that cover EVERY single important point. Do not skip any point.
 
@@ -537,19 +539,23 @@ INSTRUCTIONS:
 3. Generate as many questions as needed to ensure ALL points are covered
 4. Do NOT limit the number of questions - comprehensive coverage is the priority
 5. Each question should clearly test one or more of the listed important points
-6. Vary question types (conceptual, factual, applied, analytical) to maintain engagement
+6. Vary question types (conceptual, analytical, applied, comparative) to maintain engagement
+7. Use professional, exam-style language
+8. Questions should be independent and not reference "according to the document"
+9. Test deeper understanding and application, not just memorization
 
 ${typeInstructions}
 
 For multiple choice questions:
 - Provide 4 options (A, B, C, D)
 - Mark the correct answer
-- Include a comprehensive explanation
+- Include a comprehensive explanation that covers why the correct answer is right, why others are wrong, and key concepts
+- Create plausible distractors that test understanding
 
 For short/essay questions:
 - Ask questions that require 1-3 sentence answers
 - Provide the expected answer
-- Include a comprehensive explanation
+- Include a comprehensive explanation with key principles and practical applications
 
 Study Material:
 ${textToProcess}
@@ -716,73 +722,56 @@ async function generateQuestionsFromSingleChunk(chunkText, options, aiService) {
       typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
     }
 
-    const prompt = `
-    Follow these steps carefully and in strict order:
+    const prompt = `You are an expert educational content creator specializing in professional examinations. Generate exactly ${numQuestions} high-quality questions from this content chunk.
 
-    1. *Read the entire result.response completely first.*  
-       Do not generate or list any questions until you have read and analyzed the COMPLETE result.response from beginning to end.
-       This includes ALL sections, ALL topics, and ALL details in this chunk.
+INSTRUCTIONS:
+1. Read the entire content chunk completely first
+2. Identify all important points (facts, definitions, concepts, examples, processes, formulas, principles)
+3. Generate exactly ${numQuestions} questions that cover the broadest possible range of topics
+4. Prioritize the most important and meaningful concepts
+5. Ensure no overlap or repetition between questions
+6. Use professional, exam-style language
+7. Questions should be independent and not reference "according to the document"
+8. Test deeper understanding and application, not just memorization
+9. Vary question types (conceptual, analytical, applied, comparative) to maintain engagement
 
-    2. *Identify all important points* — include key facts, definitions, concepts, examples, processes, formulas, and other essential ideas.  
-       - Internally summarize or list these important points for your reasoning process (do not output them to the user yet).
-       - Group points by their respective *topics or subtopics* within this result.response.
+${typeInstructions}
 
-    3. *After analyzing the COMPLETE result.response:*
-       - You have access to the ENTIRE chunk result.response - use ALL of it.
-       - Generate exactly ${numQuestions} questions from this chunk.
-       - *First priority:* Cover as many different *topics* as possible from this chunk.  
-         - Distribute the selected points across multiple sections or topics to achieve broad coverage.  
-       - *Second priority:* Within those selected topics, pick the *most important or representative points*.  
-       - *Do not include the same point twice* — ensure each selected point adds unique value and context.
+For multiple choice questions:
+- Provide 4 options (A, B, C, D)
+- Mark the correct answer
+- Include a comprehensive explanation that covers:
+  * Why the correct answer is right
+  * Why other options are wrong
+  * Key concepts and principles involved
+  * Real-world applications or examples
+- Create plausible distractors that test understanding
 
-    4. *Generate the questions:*
-       - Create clear, educational, and concept-driven questions  
-       - Each question should ideally combine or connect multiple related points under the same topic.  
-       - Ensure the full question set collectively represents the *widest possible range of topics* and the *most important concepts*.  
-       - Vary the question types (conceptual, factual, applied, or analytical) to maintain depth and variety.
+For short/essay/structured questions:
+- Ask questions that require 1-3 sentence answers
+- Provide the expected answer
+- Include a comprehensive explanation that covers:
+  * Detailed explanation of the concept
+  * Key principles and theories
+  * Practical applications
+  * Related concepts
 
-    5. *Output only the final questions.*
-       - Do not show your internal reasoning, point lists, or summaries.  
-       - Present only the final, high-quality, contextually accurate questions.
+Content Chunk (Part ${chunkIndex} of ${totalChunks}):
+${chunkText}
 
-    Your goal: Generate ${numQuestions} questions that cover the *broadest possible range of topics from this chunk, and within those topics, include the **most important and meaningful points* — with no overlap or repetition.
-
-    ${typeInstructions}
-    
-    For multiple choice questions:
-    - Provide 4 options (A, B, C, D)
-    - Mark the correct answer
-    - Include a comprehensive explanation that covers:
-      * Why the correct answer is right
-      * Why other options are wrong
-      * Key concepts and principles involved
-      * Real-world applications or examples
-    
-    For short/essay/structured questions:
-    - Ask questions that require 1-3 sentence answers
-    - Provide the expected answer
-    - Include a comprehensive explanation that covers:
-      * Detailed explanation of the concept
-      * Key principles and theories
-      * Practical applications
-      * Related concepts
-    
-    Content Chunk (Part ${chunkIndex} of ${totalChunks}):
-    ${chunkText}
-    
-    Format your response as JSON:
+Format your response as JSON:
+{
+  "questions": [
     {
-      "questions": [
-        {
-          "type": "mcq" | "short",
-          "question": "Question text?",
-          "options": ["Option A", "Option B", "Option C", "Option D"], // only for mcq
-          "correctAnswer": "Expected answer or the correct option value",
-          "explanation": "Comprehensive explanation"
-        }
-      ]
+      "type": "mcq" | "short",
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"], // only for mcq
+      "correctAnswer": "Expected answer or the correct option value",
+      "explanation": "Comprehensive explanation"
     }
-    `;
+  ]
+}
+`;
 
     const result = await aiService.callAI(prompt);
     

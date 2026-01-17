@@ -267,8 +267,12 @@ class AIService {
     let questionFormat = '';
     
     if (type === 'mcq') {
-      typeInstructions = `Generate only multiple choice questions. Do NOT include any short, essay, or structured questions.`;
-      questionFormat = `Each question should have 4 multiple choice options (A, B, C, D)`;
+      typeInstructions = `Generate only multiple choice questions in the style of professional exams (UPSC, GATE, NEET, etc.). Do NOT include any short, essay, or structured questions.`;
+      questionFormat = `Each question should have 4 multiple choice options (A, B, C, D). Create questions that are:
+- Clear and unambiguous
+- Test conceptual understanding and application
+- Include plausible distractors
+- Avoid "all of the above" or "none of the above" options`;
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
       questionFormat = `Each question should require a short written answer (1-3 sentences)`;
@@ -280,24 +284,33 @@ a) First part of the question
 b) Second part of the question
 c) Third part of the question"`;
     } else if (type === 'mixed') {
-      typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions.`;
+      typeInstructions = `Generate a mixed set including both multiple choice and short/essay style questions in professional exam format.`;
       questionFormat = `Include both multiple choice questions (with 4 options A, B, C, D) and short written answer questions`;
     }
     
-    return `You are an expert quiz generator. Create ${numQuestions} quiz questions based on the following document text.
+    return `You are an expert educational content creator specializing in professional examinations. Create ${numQuestions} high-quality questions based on the following study material.
 
-Document Text:
+Study Material:
 ${documentText}
 
-Requirements:
-- Generate ${numQuestions} questions
+REQUIREMENTS:
+- Generate exactly ${numQuestions} questions
 - Difficulty level: ${difficulty}
 - Question type: ${type}
 - ${typeInstructions}
 - ${questionFormat}
-- Include the correct answer marked with [CORRECT] for MCQ or provide expected answer for essay questions
-- Make questions relevant to the document content
-- Ensure questions test understanding, not just memorization
+- Questions should be independent and not reference "according to the document"
+- Use professional, exam-style language
+- Test deeper understanding and application, not just memorization
+- Vary question types (conceptual, analytical, applied, comparative)
+- Include the correct answer for MCQ or expected answer for essay questions
+
+QUALITY STANDARDS:
+- Each question should be clear, concise, and unambiguous
+- Options should be plausible but clearly distinguishable
+- Questions should test important concepts and principles
+- Avoid trivial or obvious questions
+- Ensure questions are at the specified difficulty level
 
 Format your response as JSON with this structure:
 {
@@ -307,7 +320,7 @@ Format your response as JSON with this structure:
       "question": "Question text here?",
       "options": ${type === 'mcq' || type === 'mixed' ? '{"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}' : 'null'},
       "correct": ${type === 'mcq' || type === 'mixed' ? '"A"' : '"Expected answer text"'},
-      "explanation": "Brief explanation of why this is correct"
+      "explanation": "Comprehensive explanation of the correct answer"
     }
   ]
 }
