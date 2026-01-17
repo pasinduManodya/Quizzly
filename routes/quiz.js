@@ -165,9 +165,40 @@ function isAnswerCorrect(question, userAnswerRaw) {
 // Enhanced essay grading using AI with explicit point identification
 async function gradeEssayAnswer(correctAnswer, userAnswer) {
   try {
-    // If user answer is empty or too short, return immediate poor grade
+    // If user answer is empty or too short, return immediate poor grade with correct answer breakdown
     if (!userAnswer || userAnswer.trim().length < 2) {
-      console.log('⚠️ User answer is empty or too short, returning poor grade');
+      console.log('⚠️ User answer is empty or too short, returning poor grade with correct answer');
+      
+      // Parse the correct answer to extract parts (a, b, c, etc.) for structured essays
+      const correctAnswerText = correctAnswer || '';
+      const parts = correctAnswerText.match(/[a-z]\)\s*([^\n]+)/gi) || [];
+      
+      // If it's a structured essay with parts, show each part as a point
+      if (parts.length > 0) {
+        const allPoints = parts.map((part, idx) => {
+          const cleanPart = part.replace(/^[a-z]\)\s*/i, '').trim();
+          return {
+            pointNumber: idx + 1,
+            point: cleanPart,
+            covered: false,
+            studentMention: ''
+          };
+        });
+        
+        return {
+          totalPoints: allPoints.length,
+          pointsCovered: 0,
+          score: 0,
+          grade: 'Poor',
+          allCorrectPoints: allPoints,
+          missedPoints: allPoints.map(p => p.point),
+          feedback: 'No meaningful answer was provided. Please provide a complete answer addressing all parts of the question.',
+          strengths: 'N/A',
+          improvements: `Please provide detailed answers for all ${allPoints.length} parts of the question: ${allPoints.map((p, i) => `${String.fromCharCode(97 + i)}) ${p.point}`).join('; ')}`
+        };
+      }
+      
+      // Fallback for non-structured essays
       return {
         totalPoints: 1,
         pointsCovered: 0,
@@ -175,11 +206,11 @@ async function gradeEssayAnswer(correctAnswer, userAnswer) {
         grade: 'Poor',
         allCorrectPoints: [{
           pointNumber: 1,
-          point: 'Student provided no meaningful answer',
+          point: 'Expected answer: ' + (correctAnswerText.substring(0, 100) || 'Complete answer required'),
           covered: false,
           studentMention: ''
         }],
-        missedPoints: ['Student provided no meaningful answer'],
+        missedPoints: ['No answer provided'],
         feedback: 'No answer was provided. Please provide a complete answer to be graded.',
         strengths: 'N/A',
         improvements: 'Please provide a detailed answer addressing the question.'
