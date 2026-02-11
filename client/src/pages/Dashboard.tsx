@@ -161,7 +161,7 @@ const Dashboard: React.FC = () => {
       setLoading(false);
       console.log(`🔵 [${callId}] fetchDocuments finally block - loading set to false`);
     }
-  }, [documents.length]);
+  }, [documents.length, setDocuments]);
 
   const fetchFavorites = async () => {
     try {

@@ -92,7 +92,6 @@ const ResultSheet: React.FC = () => {
     );
   }
 
-  const percentage = Math.round((quizResult.totalScore / quizResult.maxPossibleScore) * 100);
   const correctAnswers = quizResult.answers.filter(answer => answer.isCorrect).length;
   
   console.log('🔍 DEBUGGING RESULT SHEET:');
