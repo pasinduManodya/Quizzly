@@ -1,10 +1,10 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "npm-9_x"]
+nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
 cmds = [
-  "npm install --production --no-audit --no-fund",
-  "cd client && npm install --no-audit --no-fund"
+  "npm install --legacy-peer-deps --no-audit --no-fund",
+  "cd client && npm install --legacy-peer-deps --no-audit --no-fund"
 ]
 
 [phases.build]
@@ -15,4 +15,3 @@ cmd = "node server.js"
 
 [variables]
 NODE_ENV = "production"
-NPM_CONFIG_PRODUCTION = "false"

@@ -14,7 +14,7 @@
     "dev:frontend": "cd client && npm start",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "client": "cd client && npm start",
-    "build": "npm install --production --no-audit --no-fund && cd client && npm install --no-audit --no-fund && npm run build",
+    "build": "npm install --legacy-peer-deps --no-audit --no-fund && cd client && npm install --legacy-peer-deps --no-audit --no-fund && npm run build",
     "build:ci": "cd src/client && npm ci && npm run build",
     "install:client": "cd client && npm install",
     "install:all": "npm install && cd client && npm install",
