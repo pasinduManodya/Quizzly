@@ -249,13 +249,6 @@ const AnalyticsOverview: React.FC = () => {
               const minValue = Math.min(...data.map(d => d.activeUsers));
               const range = maxValue - minValue || 1;
               
-              // Calculate points for the line
-              const points = data.map((day, index) => {
-                const x = (index / (data.length - 1)) * 700 + 50;
-                const y = 180 - ((day.activeUsers - minValue) / range) * 160;
-                return `${x},${y}`;
-              }).join(' ');
-              
               // Create smooth curve using quadratic bezier curves
               const smoothPoints = data.map((day, index) => {
                 const x = (index / (data.length - 1)) * 700 + 50;

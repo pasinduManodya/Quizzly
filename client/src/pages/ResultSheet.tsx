@@ -68,14 +68,6 @@ const ResultSheet: React.FC = () => {
   };
 
 
-  const getScoreColor = (percentage: number) => {
-    if (percentage >= 90) return 'text-green-600';
-    if (percentage >= 80) return 'text-blue-600';
-    if (percentage >= 70) return 'text-yellow-600';
-    if (percentage >= 60) return 'text-orange-600';
-    return 'text-red-600';
-  };
-
   const getScoreBadge = (percentage: number) => {
     if (percentage >= 90) return { text: 'Excellent', color: 'bg-green-100 text-green-800' };
     if (percentage >= 80) return { text: 'Good', color: 'bg-blue-100 text-blue-800' };
@@ -111,7 +103,6 @@ const ResultSheet: React.FC = () => {
 
   const percentage = Math.round((quizResult.totalScore / quizResult.maxPossibleScore) * 100);
   const correctAnswers = quizResult.answers.filter(answer => answer.isCorrect).length;
-  const scoreBadge = getScoreBadge(percentage);
   
   console.log('🔍 DEBUGGING RESULT SHEET:');
   console.log('Quiz Result:', quizResult);

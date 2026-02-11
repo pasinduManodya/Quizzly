@@ -27,7 +27,7 @@ interface QuizResult {
 }
 
 export const generateQuizPDF = (quizResult: QuizResult): void => {
-  const { document, answers, total, correct, incorrect, quizDuration, userName, userEmail } = quizResult;
+  const { document, total, correct, userName, userEmail } = quizResult;
   
   // Create new PDF document
   const pdf = new jsPDF('p', 'mm', 'a4');

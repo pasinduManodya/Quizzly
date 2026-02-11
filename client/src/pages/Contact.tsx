@@ -275,13 +275,13 @@ const Contact: React.FC = () => {
             <div className="flex flex-wrap justify-center space-x-6 mb-6">
               <a href="/about" className="text-gray-300 hover:text-white transition-colors duration-200">About</a>
               <a href="/contact" className="text-gray-300 hover:text-white transition-colors duration-200">Contact</a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200">Privacy</a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200">Terms</a>
+              <a href="/privacy" className="text-gray-300 hover:text-white transition-colors duration-200">Privacy</a>
+              <a href="/terms" className="text-gray-300 hover:text-white transition-colors duration-200">Terms</a>
             </div>
             
             <div className="border-t border-gray-700 pt-6">
               <p className="text-gray-400">
-                © 2025 Quizzly. All rights reserved.
+                2025 Quizzly. All rights reserved.
               </p>
             </div>
           </div>

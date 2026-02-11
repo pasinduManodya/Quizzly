@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { documentsAPI, quizAPI, favoritesAPI } from '../services/api';
-import axios from 'axios';
 import ExplanationModal from '../components/ExplanationModal';
 import Stopwatch from '../components/Stopwatch';
 import LoadingSpinner from '../components/LoadingSpinner';
-import AILoading from '../components/AILoading';
 import { generateQuizPDF } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -312,8 +310,6 @@ const Quiz: React.FC = () => {
   if (!document) return null;
 
   const answeredCount = answeredQuestions.size;
-  const allQuestionsAnswered = document ? answers.every(answer => answer && answer.trim() !== '') : false;
-  const hasAnyAnswers = document ? answers.some(answer => answer && answer.trim() !== '') : false;
   const progress = (answeredCount / document.questions.length) * 100;
 
   // Helpers to evaluate correctness consistently with backend
@@ -502,19 +498,24 @@ const Quiz: React.FC = () => {
               {/* Answer Options */}
               <div className="space-y-4 mb-6">
                 {question.type === 'mcq' && question.options ? (
-                  question.options.map((option, optionIndex) => (
-                    <label key={optionIndex} className="flex items-center">
-                      <input
-                        type="radio"
-                        name={`question-${questionIndex}`}
-                        value={option}
-                        checked={answers[questionIndex] === option}
-                        onChange={(e) => handleAnswerChange(questionIndex, e.target.value)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                      />
-                      <span className="ml-3 text-gray-700">{option}</span>
-                    </label>
-                  ))
+                  question.options.map((option, optionIndex) => {
+                    const optionLabel = String.fromCharCode(65 + optionIndex); // A, B, C, D
+                    return (
+                      <label key={optionIndex} className="flex items-center">
+                        <input
+                          type="radio"
+                          name={`question-${questionIndex}`}
+                          value={option}
+                          checked={answers[questionIndex] === option}
+                          onChange={(e) => handleAnswerChange(questionIndex, e.target.value)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="ml-3 text-gray-700">
+                          <span className="font-semibold text-gray-900">{optionLabel}.</span> {option}
+                        </span>
+                      </label>
+                    );
+                  })
                 ) : (
                   <>
                     <textarea

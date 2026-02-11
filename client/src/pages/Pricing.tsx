@@ -354,8 +354,8 @@ const Pricing: React.FC = () => {
               <Link to="/about" className="text-gray-300 hover:text-white transition-colors duration-200">About</Link>
               <Link to="/pricing" className="text-white font-semibold">Pricing</Link>
               <Link to="/contact" className="text-gray-300 hover:text-white transition-colors duration-200">Contact</Link>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200">Privacy</a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors duration-200">Terms</a>
+              <Link to="/privacy" className="text-gray-300 hover:text-white transition-colors duration-200">Privacy</Link>
+              <Link to="/terms" className="text-gray-300 hover:text-white transition-colors duration-200">Terms</Link>
             </div>
             
             <div className="border-t border-gray-700 pt-6">

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { quizAPI } from '../services/api';
-import AILoading from './AILoading';
 import EnhancedExplanationLoading from './EnhancedExplanationLoading';
 
 interface ExplanationModalProps {
@@ -157,7 +156,7 @@ const ExplanationModal: React.FC<ExplanationModalProps> = ({
       .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono border border-gray-300">$1</code>')
       
       // Enhanced lists with better spacing and icons
-      .replace(/^\- (.*$)/gim, '<li class="ml-6 mb-2 flex items-start"><span class="text-blue-500 mr-2 mt-1">•</span><span class="text-gray-700">$1</span></li>')
+      .replace(/^- (.*$)/gim, '<li class="ml-6 mb-2 flex items-start"><span class="text-blue-500 mr-2 mt-1">•</span><span class="text-gray-700">$1</span></li>')
       .replace(/^\d+\. (.*$)/gim, '<li class="ml-6 mb-2 flex items-start"><span class="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center mr-3 mt-0.5 font-bold">$&</span><span class="text-gray-700">$1</span></li>')
       
       // Enhanced blockquotes with professional styling

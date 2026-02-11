@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { documentsAPI, favoritesAPI } from '../services/api';
 import SummaryModal from '../components/SummaryModal';
@@ -53,13 +53,12 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const uploadXHRRef = useRef<XMLHttpRequest | null>(null);
   const uploadProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const uploadCompleteIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const uploadCancelledRef = useRef<boolean>(false);
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const [, setFavorites] = useState<any[]>([]);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryText, setSummaryText] = useState('');
   const [summaryTitle, setSummaryTitle] = useState('');

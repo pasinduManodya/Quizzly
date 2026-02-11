@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 interface TokenUsage {
@@ -60,20 +60,7 @@ const UsersTab: React.FC = () => {
   const [editingSubscription, setEditingSubscription] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
-  useEffect(() => {
-    fetchUsers(true);
-    
-    // Set up auto-refresh interval for real-time token usage updates
-    const refreshInterval = setInterval(() => {
-      if (autoRefreshEnabled) {
-        fetchUsers(false);
-      }
-    }, 2000); // Refresh every 2 seconds for real-time updates
-    
-    return () => clearInterval(refreshInterval);
-  }, [autoRefreshEnabled, selectedUser, showUserModal]);
-
-  const fetchUsers = async (showLoading: boolean = true) => {
+  const fetchUsers = useCallback(async (showLoading: boolean = true) => {
     try {
       if (showLoading) setLoading(true);
       const response = await axios.get('/api/admin/users');
@@ -92,7 +79,20 @@ const UsersTab: React.FC = () => {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [selectedUser, showUserModal]);
+
+  useEffect(() => {
+    fetchUsers(true);
+    
+    // Set up auto-refresh interval for real-time token usage updates
+    const refreshInterval = setInterval(() => {
+      if (autoRefreshEnabled) {
+        fetchUsers(false);
+      }
+    }, 2000); // Refresh every 2 seconds for real-time updates
+    
+    return () => clearInterval(refreshInterval);
+  }, [autoRefreshEnabled, fetchUsers]);
 
   const handleUpdateSubscription = async (userId: string, subscriptionData: any) => {
     try {
@@ -153,16 +153,6 @@ const UsersTab: React.FC = () => {
       await fetchUsers();
     } catch (error) {
       console.error('Error updating role:', error);
-    }
-  };
-
-  const handleResetTokens = async (userId: string, resetType: string) => {
-    try {
-      await axios.post(`/api/admin/users/${userId}/reset-tokens`, { resetType });
-      await fetchUsers();
-      setShowUserModal(false);
-    } catch (error) {
-      console.error('Error resetting tokens:', error);
     }
   };
 

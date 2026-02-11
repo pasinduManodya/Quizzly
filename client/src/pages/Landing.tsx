@@ -6,7 +6,6 @@ import Logo from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 
 const Landing: React.FC = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
