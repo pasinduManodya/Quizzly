@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quizAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -51,11 +51,7 @@ const ResultSheet: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchQuizResult();
-  }, [quizResultId]);
-
-  const fetchQuizResult = async () => {
+  const fetchQuizResult = useCallback(async () => {
     try {
       const response = await quizAPI.getResult(quizResultId!);
       setQuizResult(response.data);
@@ -65,16 +61,11 @@ const ResultSheet: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [quizResultId]);
 
-
-  const getScoreBadge = (percentage: number) => {
-    if (percentage >= 90) return { text: 'Excellent', color: 'bg-green-100 text-green-800' };
-    if (percentage >= 80) return { text: 'Good', color: 'bg-blue-100 text-blue-800' };
-    if (percentage >= 70) return { text: 'Satisfactory', color: 'bg-yellow-100 text-yellow-800' };
-    if (percentage >= 60) return { text: 'Needs Improvement', color: 'bg-orange-100 text-orange-800' };
-    return { text: 'Poor', color: 'bg-red-100 text-red-800' };
-  };
+  useEffect(() => {
+    fetchQuizResult();
+  }, [fetchQuizResult]);
 
   if (loading) {
     return (

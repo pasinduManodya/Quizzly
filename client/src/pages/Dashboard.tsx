@@ -93,92 +93,7 @@ const Dashboard: React.FC = () => {
   const isInitialMount = useRef(true);
   const condensedTextPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  useEffect(() => {
-    console.log('🟡 [MOUNT] Dashboard useEffect called', { isInitialMount: isInitialMount.current });
-    
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      console.log('🟡 [MOUNT] Initial mount - fetching documents');
-      fetchDocuments(false); // false = can clear on error for initial load
-      fetchFavorites();
-    } else {
-      console.log('🟡 [MOUNT] Re-render detected - NOT fetching documents again');
-    }
-    
-    // Cleanup function to cancel any ongoing uploads when component unmounts
-    return () => {
-      console.log('🟡 [UNMOUNT] Dashboard cleanup called');
-      if (uploadXHRRef.current) {
-        uploadXHRRef.current.abort();
-        uploadXHRRef.current = null;
-      }
-      if (uploadProgressIntervalRef.current) {
-        clearInterval(uploadProgressIntervalRef.current);
-        uploadProgressIntervalRef.current = null;
-      }
-      if (uploadCompleteIntervalRef.current) {
-        clearInterval(uploadCompleteIntervalRef.current);
-        uploadCompleteIntervalRef.current = null;
-      }
-      if (condensedTextPollIntervalRef.current) {
-        clearInterval(condensedTextPollIntervalRef.current);
-        condensedTextPollIntervalRef.current = null;
-      }
-    };
-  }, []); // Empty deps - only run on mount
-  
-  // Separate effect to poll for condensed text readiness
-  useEffect(() => {
-    // Poll for condensed text readiness if any documents are not ready
-    const hasUnreadyDocuments = documents.some(doc => !doc.condensedTextReady);
-    
-    if (hasUnreadyDocuments) {
-      // Clear any existing interval first
-      if (condensedTextPollIntervalRef.current) {
-        clearInterval(condensedTextPollIntervalRef.current);
-      }
-      // Poll every 3 seconds to check if condensed text is ready
-      condensedTextPollIntervalRef.current = setInterval(() => {
-        fetchDocuments(true); // preserveOnError = true to avoid clearing on temporary errors
-      }, 3000) as NodeJS.Timeout;
-    } else {
-      // Clear interval if all documents are ready
-      if (condensedTextPollIntervalRef.current) {
-        clearInterval(condensedTextPollIntervalRef.current);
-        condensedTextPollIntervalRef.current = null;
-      }
-    }
-    
-    return () => {
-      if (condensedTextPollIntervalRef.current) {
-        clearInterval(condensedTextPollIntervalRef.current);
-        condensedTextPollIntervalRef.current = null;
-      }
-    };
-  }, [documents]); // Re-run when documents change to check if polling is needed
-
-  // Handle browser back button
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      event.preventDefault();
-      // Push the current state back to prevent immediate navigation
-      window.history.pushState(null, '', window.location.pathname);
-      // Show confirmation dialog
-      setShowLogoutConfirm(true);
-    };
-
-    // Push initial state to enable back button detection
-    window.history.pushState(null, '', window.location.pathname);
-    
-    // Listen for back button
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  const fetchDocuments = async (preserveOnError = false) => {
+  const fetchDocuments = useCallback(async (preserveOnError = false) => {
     const callId = `fetch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     console.log(`🔵 [${callId}] fetchDocuments called`, { preserveOnError, currentDocsCount: documents.length });
     
@@ -246,7 +161,7 @@ const Dashboard: React.FC = () => {
       setLoading(false);
       console.log(`🔵 [${callId}] fetchDocuments finally block - loading set to false`);
     }
-  };
+  }, [documents.length]);
 
   const fetchFavorites = async () => {
     try {
@@ -256,6 +171,79 @@ const Dashboard: React.FC = () => {
       // ignore
     }
   };
+
+  useEffect(() => {
+    console.log('🟡 [MOUNT] Dashboard useEffect called', { isInitialMount: isInitialMount.current });
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      console.log('🟡 [MOUNT] Initial mount - fetching documents');
+      fetchDocuments(false);
+      fetchFavorites();
+    } else {
+      console.log('🟡 [MOUNT] Re-render detected - NOT fetching documents again');
+    }
+    
+    return () => {
+      console.log('🟡 [UNMOUNT] Dashboard cleanup called');
+      if (uploadXHRRef.current) {
+        uploadXHRRef.current.abort();
+        uploadXHRRef.current = null;
+      }
+      if (uploadProgressIntervalRef.current) {
+        clearInterval(uploadProgressIntervalRef.current);
+        uploadProgressIntervalRef.current = null;
+      }
+      if (uploadCompleteIntervalRef.current) {
+        clearInterval(uploadCompleteIntervalRef.current);
+        uploadCompleteIntervalRef.current = null;
+      }
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+        condensedTextPollIntervalRef.current = null;
+      }
+    };
+  }, [fetchDocuments]);
+  
+  useEffect(() => {
+    const hasUnreadyDocuments = documents.some(doc => !doc.condensedTextReady);
+    
+    if (hasUnreadyDocuments) {
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+      }
+      condensedTextPollIntervalRef.current = setInterval(() => {
+        fetchDocuments(true);
+      }, 3000) as NodeJS.Timeout;
+    } else {
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+        condensedTextPollIntervalRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (condensedTextPollIntervalRef.current) {
+        clearInterval(condensedTextPollIntervalRef.current);
+        condensedTextPollIntervalRef.current = null;
+      }
+    };
+  }, [documents, fetchDocuments]);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      event.preventDefault();
+      window.history.pushState(null, '', window.location.pathname);
+      setShowLogoutConfirm(true);
+    };
+
+    window.history.pushState(null, '', window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;

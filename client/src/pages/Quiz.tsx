@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { documentsAPI, quizAPI, favoritesAPI } from '../services/api';
 import ExplanationModal from '../components/ExplanationModal';
@@ -67,11 +67,7 @@ const Quiz: React.FC = () => {
   const [generateMoreError, setGenerateMoreError] = useState('');
   
 
-  useEffect(() => {
-    fetchDocument();
-  }, [documentId]);
-
-  const fetchDocument = async () => {
+  const fetchDocument = useCallback(async () => {
     try {
       const response = await documentsAPI.getById(documentId!);
       setDocument(response.data);
@@ -87,7 +83,11 @@ const Quiz: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [documentId]);
+
+  useEffect(() => {
+    fetchDocument();
+  }, [fetchDocument]);
 
   const handleAnswerChange = (questionIndex: number, answer: string) => {
     const newAnswers = [...answers];
