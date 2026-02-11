@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "AI-powered quiz generation platform - Transform your study materials into interactive quizzes",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -10,7 +14,7 @@
     "dev:frontend": "cd client && npm start",
     "dev:full": "concurrently \"npm run dev\" \"npm run client\"",
     "client": "cd client && npm start",
-    "build": "cd client && npm ci && npm run build",
+    "build": "npm ci --omit=dev && cd client && npm ci && npm run build",
     "build:ci": "cd src/client && npm ci && npm run build",
     "install:client": "cd client && npm install",
     "install:all": "npm install && cd client && npm install",

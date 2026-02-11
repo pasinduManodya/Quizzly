@@ -1,11 +1,15 @@
-import dns from "node:dns/promises";
+const dns = require("dns").promises;
 
 class DNSResolver {
   constructor() {
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
     this.fallbackServers = ["8.8.8.8", "1.1.1.1", "208.67.222.222"]; // Google, Cloudflare, OpenDNS
-    dns.setServers(this.fallbackServers);
+    try {
+      require("dns").setServers(this.fallbackServers);
+    } catch (error) {
+      console.warn('⚠️  Could not set DNS servers:', error.message);
+    }
   }
 
   async resolveA(hostname, retries = 3) {
@@ -108,4 +112,4 @@ class DNSResolver {
   }
 }
 
-export default new DNSResolver();
+module.exports = new DNSResolver();

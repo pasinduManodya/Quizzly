@@ -35,7 +35,7 @@ class MongoDBConnectionManager {
       // Try DNS pre-resolution, but don't fail if it doesn't work
       try {
         console.log('🔍 Pre-resolving MongoDB hostnames...');
-        const dnsResults = await dnsResolver.preResolveMongoDBHosts();
+        const dnsResults = await dnsResolver.preResolveMongoHosts();
         const failedHosts = dnsResults.filter(r => !r.success);
         if (failedHosts.length > 0) {
           console.warn(`⚠️  Some MongoDB hostnames failed DNS resolution:`);

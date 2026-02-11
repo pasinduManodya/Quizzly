@@ -1,0 +1,43 @@
+# Development files
+node_modules/
+.env.local
+.env.development
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Client source (only need build)
+client/src/
+client/public/
+client/node_modules/
+
+# Keep only the built client
+!client/build/
