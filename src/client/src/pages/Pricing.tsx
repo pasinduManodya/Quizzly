@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import CommonHeader from '../components/CommonHeader';
 import Logo from '../components/Logo';
 
 interface PricingPlan {
@@ -15,91 +16,98 @@ interface PricingPlan {
   color: string;
 }
 
-const Pricing: React.FC = () => {
-  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([
-    {
-      id: 'free',
-      name: 'Free',
-      price: 0,
-      currency: '$',
-      period: 'forever',
-      dailyLimit: 3,
-      monthlyLimit: 10,
-      features: [
-        '3 PDF uploads per day',
-        '10 PDF uploads per month',
-        'Basic MCQ quizzes',
-        'AI-powered feedback',
-        'Save favorites',
-        'Guest access'
-      ],
-      color: 'teal'
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      price: 9.99,
-      currency: '$',
-      period: 'month',
-      dailyLimit: 20,
-      monthlyLimit: 100,
-      features: [
-        '20 PDF uploads per day',
-        '100 PDF uploads per month',
-        'MCQ + Essay quizzes',
-        'Advanced AI feedback',
-        'Unlimited favorites',
-        'Priority support',
-        'Export quiz results'
-      ],
-      popular: true,
-      color: 'violet'
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      price: 19.99,
-      currency: '$',
-      period: 'month',
-      dailyLimit: 50,
-      monthlyLimit: 500,
-      features: [
-        '50 PDF uploads per day',
-        '500 PDF uploads per month',
-        'All quiz types (MCQ, Essay, Mixed)',
-        'Premium AI feedback',
-        'Unlimited favorites',
-        '24/7 priority support',
-        'Export & analytics',
-        'Custom quiz templates',
-        'API access'
-      ],
-      color: 'yellow'
-    }
-  ]);
+const DEFAULT_PLANS: PricingPlan[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    currency: '$',
+    period: 'forever',
+    dailyLimit: 3,
+    monthlyLimit: 10,
+    features: [
+      '3 PDF uploads per day',
+      '10 PDF uploads per month',
+      'Basic MCQ quizzes',
+      'AI-powered feedback',
+      'Save favorites',
+      'Guest access'
+    ],
+    color: 'teal'
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: 9.99,
+    currency: '$',
+    period: 'month',
+    dailyLimit: 20,
+    monthlyLimit: 100,
+    features: [
+      '20 PDF uploads per day',
+      '100 PDF uploads per month',
+      'MCQ + Essay quizzes',
+      'Advanced AI feedback',
+      'Unlimited favorites',
+      'Priority support',
+      'Export quiz results'
+    ],
+    popular: true,
+    color: 'violet'
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    price: 19.99,
+    currency: '$',
+    period: 'month',
+    dailyLimit: 50,
+    monthlyLimit: 500,
+    features: [
+      '50 PDF uploads per day',
+      '500 PDF uploads per month',
+      'All quiz types (MCQ, Essay, Mixed)',
+      'Premium AI feedback',
+      'Unlimited favorites',
+      '24/7 priority support',
+      'Export & analytics',
+      'Custom quiz templates',
+      'API access'
+    ],
+    color: 'yellow'
+  }
+];
 
+const Pricing: React.FC = () => {
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>(DEFAULT_PLANS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch pricing plans from API
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const fetchPricingPlans = async () => {
       try {
-        const response = await fetch('/api/pricing/plans');
+        const response = await fetch('/api/pricing/plans', { signal: controller.signal });
         if (response.ok) {
           const data = await response.json();
-          if (data.success && data.plans) {
+          if (data.success && data.plans && Array.isArray(data.plans)) {
             setPricingPlans(data.plans);
           }
         }
       } catch (error) {
         console.error('Failed to fetch pricing plans:', error);
-        // Keep default plans if API fails
       } finally {
         setLoading(false);
+        clearTimeout(timeoutId);
       }
     };
 
     fetchPricingPlans();
+    return () => {
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const getColorClasses = (color: string) => {
@@ -192,25 +200,7 @@ const Pricing: React.FC = () => {
         `
       }} />
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-teal-100/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3">
-            <Logo className="h-10 w-10 rounded-xl object-cover" size={40} />
-            <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-violet-600 bg-clip-text text-transparent">
-              Quizzly
-            </span>
-          </Link>
-          <nav className="hidden sm:flex items-center space-x-6">
-            <Link to="/about" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">About</Link>
-            <Link to="/pricing" className="text-teal-600 font-semibold">Pricing</Link>
-            <Link to="/contact" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Contact</Link>
-            <Link to="/login" className="bg-gradient-to-r from-teal-500 to-violet-600 text-white px-6 py-2 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 hover:scale-105">
-              Get Started
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <CommonHeader />
 
       {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-teal-50 via-white to-violet-50">

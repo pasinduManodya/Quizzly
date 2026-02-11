@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { registerServiceWorker } from './utils/pwa';
 import PWAStatusIndicator from './components/PWAStatusIndicator';
+import PublicLayout from './components/PublicLayout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
@@ -32,9 +33,12 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/contact" element={<Contact />} />
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Landing />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/contact" element={<Contact />} />
+            </Route>
             <Route 
               path="/admin" 
               element={
@@ -44,7 +48,6 @@ function App() {
               } 
             />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/" element={<Landing />} />
             <Route 
               path="/dashboard" 
               element={

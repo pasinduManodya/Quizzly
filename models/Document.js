@@ -44,6 +44,18 @@ const documentSchema = new mongoose.Schema({
     explanation: {
       type: String,
       required: true
+    },
+    coversPoints: [Number] // Track which important points this question covers
+  }],
+  importantPoints: [{
+    id: Number,
+    point: String,
+    category: String,
+    topic: String,
+    details: String,
+    covered: {
+      type: Boolean,
+      default: false
     }
   }],
   user: {

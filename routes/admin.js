@@ -45,9 +45,31 @@ router.get('/users', adminAuth, asyncHandler(async (req, res) => {
       console.error(`Error loading token limits for user ${user._id}:`, error);
     }
     
-    // Get fresh token usage and save any reset changes
-    const tokenUsage = user.getTokenUsage();
-    await user.save().catch(err => console.error('Error saving user token reset:', err));
+    // Get fresh token usage and save any reset changes (now async)
+    let tokenUsage;
+    try {
+      tokenUsage = await user.getTokenUsage();
+    } catch (error) {
+      console.error(`Error getting token usage for user ${user._id}:`, error);
+      // Fallback to synchronous version if async fails
+      tokenUsage = {
+        totalUsed: user.tokenUsage.totalTokensUsed,
+        totalInputTokens: user.tokenUsage.totalInputTokens,
+        totalOutputTokens: user.tokenUsage.totalOutputTokens,
+        dailyUsed: user.tokenUsage.dailyTokensUsed,
+        dailyInputTokens: user.tokenUsage.dailyInputTokens,
+        dailyOutputTokens: user.tokenUsage.dailyOutputTokens,
+        monthlyUsed: user.tokenUsage.monthlyTokensUsed,
+        monthlyInputTokens: user.tokenUsage.monthlyInputTokens,
+        monthlyOutputTokens: user.tokenUsage.monthlyOutputTokens,
+        dailyRemaining: user.tokenLimits.dailyLimit - user.tokenUsage.dailyTokensUsed,
+        monthlyRemaining: user.tokenLimits.monthlyLimit - user.tokenUsage.monthlyTokensUsed,
+        dailyLimit: user.tokenLimits.dailyLimit,
+        monthlyLimit: user.tokenLimits.monthlyLimit,
+        dailyPercentage: Math.round((user.tokenUsage.dailyTokensUsed / user.tokenLimits.dailyLimit) * 100),
+        monthlyPercentage: Math.round((user.tokenUsage.monthlyTokensUsed / user.tokenLimits.monthlyLimit) * 100)
+      };
+    }
     
     // Log token usage for debugging
     if (user.email === req.user?.email) {

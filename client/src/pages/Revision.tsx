@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { quizAPI } from '../services/api';
 import { generateQuizPDF } from '../utils/pdfGenerator';
+import { useAuth } from '../contexts/AuthContext';
 
 interface QuizResult {
   _id: string;
@@ -31,6 +32,7 @@ interface RevisionItem {
 
 const Revision: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [quizHistory, setQuizHistory] = useState<QuizResult[]>([]);
   const [revisionItems, setRevisionItems] = useState<RevisionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,7 +288,9 @@ const Revision: React.FC = () => {
       total: selectedQuiz.totalQuestions,
       correct: selectedQuiz.score,
       incorrect: selectedQuiz.totalQuestions - selectedQuiz.score,
-      quizDuration: 0 // We don't have duration in this context
+      quizDuration: 0, // We don't have duration in this context
+      userName: user?.email?.split('@')[0] || 'Student',
+      userEmail: user?.email || ''
     };
     
     generateQuizPDF(quizResult);

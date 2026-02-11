@@ -84,6 +84,12 @@ export const documentsAPI = {
     index: number,
     options: { type?: 'mcq'|'essay'|'structured_essay'|'mixed'; coverAllTopics?: boolean }
   ) => axios.post(`/api/documents/${documentId}/regenerate-one`, { index, ...options }),
+
+  generateMore: (
+    documentId: string,
+    options: { type: 'mcq'|'essay'|'structured_essay'|'mixed'; numQuestions?: number }
+  ) => axios.post(`/api/documents/${documentId}/generate-more`, options),
+
   summarize: (documentId: string, config?: { signal?: AbortSignal }) => 
     axios.post(`/api/documents/${documentId}/summary`, {}, config),
   

@@ -215,7 +215,13 @@ async function generateQuestionsFromChunks(text, options, aiService) {
       }
       
       // Trim to exact number requested
-      const finalQuestions = totalQuestions.slice(0, numQuestions);
+      let finalQuestions = totalQuestions.slice(0, numQuestions);
+      
+      // Balance answer distribution for MCQ questions
+      if (type === 'mcq' || type === 'mixed') {
+        console.log('🎯 Balancing answer distribution for chunked MCQ questions...');
+        finalQuestions = aiService.balanceAnswerDistribution(finalQuestions);
+      }
       
       console.log(`✅ Generated ${finalQuestions.length} questions from ${chunks.length} chunks`);
       return finalQuestions;
@@ -248,7 +254,13 @@ async function generateComprehensiveQuestionsFromChunks(chunks, options, aiServi
     console.log(`📊 Found ${importantPoints.length} important points to cover across ${chunks.length} chunks`);
     
     // Step 2: Generate questions to cover all points
-    const questions = await generateQuestionsToCoerAllPoints(fullText, importantPoints, options, aiService);
+    let questions = await generateQuestionsToCoerAllPoints(fullText, importantPoints, options, aiService);
+    
+    // Balance answer distribution for MCQ questions
+    if (type === 'mcq' || type === 'mixed') {
+      console.log('🎯 Balancing answer distribution for comprehensive large PDF MCQ questions...');
+      questions = aiService.balanceAnswerDistribution(questions);
+    }
     
     console.log(`🎉 COMPREHENSIVE COVERAGE COMPLETE: Generated ${questions.length} questions covering ALL important points`);
     return questions;
@@ -695,7 +707,13 @@ async function generateComprehensiveQuestionsForSmallPDF(text, options, aiServic
     console.log(`📊 Found ${importantPoints.length} important points to cover`);
     
     // Step 2: Generate questions to cover all points
-    const questions = await generateQuestionsToCoerAllPoints(text, importantPoints, options, aiService);
+    let questions = await generateQuestionsToCoerAllPoints(text, importantPoints, options, aiService);
+    
+    // Balance answer distribution for MCQ questions
+    if (options.type === 'mcq' || options.type === 'mixed') {
+      console.log('🎯 Balancing answer distribution for comprehensive MCQ questions...');
+      questions = aiService.balanceAnswerDistribution(questions);
+    }
     
     return questions;
     
@@ -897,6 +915,12 @@ async function generateQuestions(text, options = {}) {
       if (questions.length > count) {
         questions = questions.slice(0, count);
       }
+    }
+    
+    // Balance answer distribution for MCQ questions
+    if (options.type === 'mcq' || options.type === 'mixed') {
+      console.log('🎯 Balancing answer distribution for MCQ questions...');
+      questions = aiService.balanceAnswerDistribution(questions);
     }
     
     // Return questions with token usage data
@@ -1753,6 +1777,190 @@ router.post('/:id/regenerate-one', auth, async (req, res) => {
     res.json({ message: 'Question regenerated', question: document.questions[index] });
   } catch (error) {
     console.error('Regenerate one question error:', error);
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+});
+
+// Generate more questions from uncovered important points
+router.post('/:id/generate-more', auth, tokenUsageMiddleware(2000), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type = 'mcq', numQuestions = 5 } = req.body;
+    
+    const document = await Document.findOne({ _id: id, user: req.user._id });
+    if (!document) return res.status(404).json({ message: 'Document not found' });
+    
+    // Get text for processing (condensed if available)
+    const textToUse = getTextForProcessing(document);
+    if (!textToUse || !textToUse.trim()) {
+      return res.status(400).json({ message: 'No extracted text available for this document' });
+    }
+    
+    // If no important points exist, extract them first
+    if (!document.importantPoints || document.importantPoints.length === 0) {
+      console.log('📋 Extracting important points for first time...');
+      const aiService = await createAIService();
+      const importantPoints = await extractAllImportantPointsForCoverage(textToUse, aiService);
+      
+      if (importantPoints && importantPoints.length > 0) {
+        document.importantPoints = importantPoints;
+        await document.save();
+        console.log(`✅ Extracted ${importantPoints.length} important points`);
+      }
+    }
+    
+    // Mark points covered by existing questions
+    if (document.questions && document.questions.length > 0) {
+      const coveredPointIds = new Set();
+      document.questions.forEach(q => {
+        if (q.coversPoints && Array.isArray(q.coversPoints)) {
+          q.coversPoints.forEach(pointId => coveredPointIds.add(pointId));
+        }
+      });
+      
+      // Update covered status
+      document.importantPoints.forEach(point => {
+        point.covered = coveredPointIds.has(point.id);
+      });
+    }
+    
+    // Find uncovered points
+    const uncoveredPoints = document.importantPoints.filter(p => !p.covered);
+    
+    if (uncoveredPoints.length === 0) {
+      return res.status(400).json({ 
+        message: 'All important points have been covered by existing questions',
+        totalPoints: document.importantPoints.length,
+        coveredPoints: document.importantPoints.length
+      });
+    }
+    
+    console.log(`📝 Generating ${numQuestions} new questions from ${uncoveredPoints.length} uncovered points...`);
+    
+    // Generate questions for uncovered points
+    const aiService = await createAIService();
+    const uncoveredPointsList = uncoveredPoints
+      .slice(0, Math.max(uncoveredPoints.length, numQuestions * 2))
+      .map((p, i) => `${p.id}. [${p.category}] ${p.point}: ${p.details}`)
+      .join('\n');
+    
+    let typeInstructions = '';
+    if (type === 'mcq') {
+      typeInstructions = `Generate only multiple choice questions in the style of professional exams. Do NOT include any short, essay, or structured questions.`;
+    } else if (type === 'essay') {
+      typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
+    } else if (type === 'structured_essay') {
+      typeInstructions = `Generate only structured essay questions that require multi-part answers. Do NOT include any multiple choice questions. CRITICAL: Each question MUST have multiple parts labeled as a), b), c), etc.`;
+    }
+    
+    const prompt = `You are an expert educational content creator. Generate exactly ${numQuestions} new high-quality questions from these UNCOVERED important points that haven't been tested yet.
+
+UNCOVERED IMPORTANT POINTS (${uncoveredPoints.length} total):
+${uncoveredPointsList}
+
+INSTRUCTIONS:
+1. Generate exactly ${numQuestions} questions from these uncovered points
+2. Each question should test understanding of one or more uncovered points
+3. Do NOT repeat questions already generated - these are NEW questions
+4. Use professional, exam-style language
+5. Questions should be independent and not reference "according to the document"
+6. Test deeper understanding and application, not just memorization
+7. Vary question types (conceptual, analytical, applied, comparative)
+
+${typeInstructions}
+
+For multiple choice questions:
+- Provide 4 options (A, B, C, D)
+- Mark the correct answer
+- Include a comprehensive explanation
+
+For short/essay/structured questions:
+- Ask questions that require 1-3 sentence answers
+- Provide the expected answer
+- Include a comprehensive explanation
+
+Study Material (for context):
+${textToUse.substring(0, 30000)}
+
+Format your response as JSON:
+{
+  "questions": [
+    {
+      "type": "${type}",
+      "question": "Question text?",
+      "options": ${type === 'mcq' ? '{"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}' : 'null'},
+      "correct": ${type === 'mcq' ? '"A"' : '"Expected answer text"'},
+      "explanation": "Comprehensive explanation",
+      "coversPoints": [1, 2] // indices of uncovered points this covers
+    }
+  ]
+}
+
+Return only the JSON, no additional text.`;
+    
+    const result = await aiService.callAI(prompt);
+    let parsedContent;
+    
+    try {
+      parsedContent = extractJSONFromResponse(result.response);
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      return res.status(500).json({ message: 'Failed to parse AI response' });
+    }
+    
+    const newQuestions = (parsedContent.questions || []).map(q => {
+      const qt = (q.type || '').toLowerCase();
+      let mappedType = qt;
+      if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
+        mappedType = 'short';
+      } else if (qt.includes('mcq') || qt.includes('multiple')) {
+        mappedType = 'mcq';
+      } else {
+        mappedType = type === 'essay' || type === 'structured_essay' ? 'short' : 'mcq';
+      }
+      
+      return {
+        type: mappedType,
+        question: q.question || '',
+        options: convertOptionsToArray(q.options || {}),
+        correctAnswer: convertCorrectAnswerToString(q.correct || q.correctAnswer),
+        explanation: q.explanation || '',
+        coversPoints: q.coversPoints || []
+      };
+    });
+    
+    if (newQuestions.length === 0) {
+      return res.status(500).json({ message: 'Failed to generate new questions' });
+    }
+    
+    // Add new questions to document
+    document.questions.push(...newQuestions);
+    await document.save();
+    
+    // Consume tokens
+    const user = req.userWithTokens;
+    if (user && result.tokenUsage) {
+      try {
+        const inputTokens = result.tokenUsage.promptTokens || 0;
+        const outputTokens = result.tokenUsage.completionTokens || 0;
+        const totalTokens = result.tokenUsage.totalTokens || 0;
+        
+        const consumeResult = await user.consumeTokens(totalTokens, inputTokens, outputTokens);
+        console.log(`📊 Tokens - Input: ${consumeResult.dailyInputTokens.toLocaleString()} | Output: ${consumeResult.dailyOutputTokens.toLocaleString()} | Total: ${consumeResult.dailyUsed.toLocaleString()}/${consumeResult.dailyLimit.toLocaleString()}`);
+      } catch (error) {
+        console.error('Error consuming tokens:', error);
+      }
+    }
+    
+    res.json({
+      message: `Generated ${newQuestions.length} new questions from uncovered points`,
+      newQuestionsCount: newQuestions.length,
+      totalQuestionsNow: document.questions.length,
+      uncoveredPointsRemaining: uncoveredPoints.length - newQuestions.length,
+      newQuestions: newQuestions
+    });
+  } catch (error) {
+    console.error('Generate more questions error:', error);
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
 });

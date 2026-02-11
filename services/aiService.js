@@ -170,6 +170,77 @@ class AIService {
     return tokenUsage ? { response: responseText, tokenUsage } : responseText;
   }
 
+  // Balance answer distribution for MCQ questions
+  balanceAnswerDistribution(questions) {
+    const mcqQuestions = questions.filter(q => q.type === 'mcq' && q.options && q.options.length === 4);
+    
+    if (mcqQuestions.length === 0) {
+      return questions;
+    }
+
+    // Count current distribution
+    const distribution = { A: 0, B: 0, C: 0, D: 0 };
+    mcqQuestions.forEach(q => {
+      const correctLetter = q.correctAnswer ? q.correctAnswer.charAt(0).toUpperCase() : null;
+      if (correctLetter && distribution.hasOwnProperty(correctLetter)) {
+        distribution[correctLetter]++;
+      }
+    });
+
+    console.log('📊 Original answer distribution:', distribution);
+
+    // Shuffle options to balance distribution
+    const targetPerOption = Math.floor(mcqQuestions.length / 4);
+    const newDistribution = { A: 0, B: 0, C: 0, D: 0 };
+    const optionLetters = ['A', 'B', 'C', 'D'];
+
+    mcqQuestions.forEach((question, index) => {
+      // Find which option is currently correct
+      const currentCorrectLetter = question.correctAnswer ? question.correctAnswer.charAt(0).toUpperCase() : 'A';
+      const currentCorrectIndex = optionLetters.indexOf(currentCorrectLetter);
+      
+      if (currentCorrectIndex === -1) {
+        return; // Skip if invalid
+      }
+
+      // Determine target letter for this question to balance distribution
+      let targetLetter = null;
+      for (const letter of optionLetters) {
+        if (newDistribution[letter] < targetPerOption || 
+            (newDistribution[letter] === targetPerOption && index >= mcqQuestions.length - (mcqQuestions.length % 4))) {
+          targetLetter = letter;
+          break;
+        }
+      }
+
+      // If no target found (all slots filled), use the one with minimum count
+      if (!targetLetter) {
+        targetLetter = Object.keys(newDistribution).reduce((a, b) => 
+          newDistribution[a] < newDistribution[b] ? a : b
+        );
+      }
+
+      const targetIndex = optionLetters.indexOf(targetLetter);
+
+      // Shuffle options to make the target letter correct
+      if (currentCorrectIndex !== targetIndex && question.options.length === 4) {
+        const options = [...question.options];
+        const temp = options[currentCorrectIndex];
+        options[currentCorrectIndex] = options[targetIndex];
+        options[targetIndex] = temp;
+        
+        question.options = options;
+        question.correctAnswer = targetLetter;
+      }
+
+      newDistribution[targetLetter]++;
+    });
+
+    console.log('📊 Balanced answer distribution:', newDistribution);
+    
+    return questions;
+  }
+
   async callOpenAI(prompt) {
     const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1';
     const url = `${baseUrl}/chat/completions`;
@@ -272,7 +343,14 @@ class AIService {
 - Clear and unambiguous
 - Test conceptual understanding and application
 - Include plausible distractors
-- Avoid "all of the above" or "none of the above" options`;
+- Avoid "all of the above" or "none of the above" options
+
+CRITICAL - ANSWER DISTRIBUTION REQUIREMENT:
+- Distribute correct answers EVENLY across all options (A, B, C, D)
+- Aim for approximately 25% of questions with each option as the correct answer
+- For ${numQuestions} questions, try to have roughly ${Math.floor(numQuestions/4)} questions for each option
+- DO NOT favor options B or C - ensure A and D are used equally
+- Example distribution for 8 questions: 2 with A correct, 2 with B correct, 2 with C correct, 2 with D correct`;
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
       questionFormat = `Each question should require a short written answer (1-3 sentences)`;
@@ -304,6 +382,7 @@ REQUIREMENTS:
 - Test deeper understanding and application, not just memorization
 - Vary question types (conceptual, analytical, applied, comparative)
 - Include the correct answer for MCQ or expected answer for essay questions
+- ${type === 'mcq' || type === 'mixed' ? 'IMPORTANT: Ensure correct answers are distributed evenly across options A, B, C, and D (approximately 25% each)' : ''}
 
 QUALITY STANDARDS:
 - Each question should be clear, concise, and unambiguous

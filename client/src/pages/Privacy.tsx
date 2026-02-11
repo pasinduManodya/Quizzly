@@ -1,37 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import CommonHeader from '../components/CommonHeader';
 import Logo from '../components/Logo';
 
 const Privacy: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-teal-100/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-            <Logo className="h-10 w-10 rounded-xl object-cover" size={40} />
-            <span className="text-xl font-bold bg-gradient-to-r from-teal-600 to-violet-600 bg-clip-text text-transparent">
-              Quizzly
-            </span>
-          </Link>
-          
-          <nav className="hidden sm:flex items-center space-x-6">
-            <Link to="/about" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">About</Link>
-            <Link to="/pricing" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Pricing</Link>
-            <Link to="/contact" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Contact</Link>
-            <Link to="/privacy" className="text-gray-600 hover:text-teal-600 transition-colors font-medium">Privacy & Policy</Link>
-            <Link to="/login" className="bg-gradient-to-r from-teal-500 to-violet-600 text-white px-6 py-2 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 hover:scale-105">
-              Get Started
-            </Link>
-          </nav>
-
-          <Link to="/" className="sm:hidden text-gray-600 hover:text-teal-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-        </div>
-      </header>
+      <CommonHeader />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12 sm:py-16">

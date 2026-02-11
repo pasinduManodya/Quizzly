@@ -1,108 +1,111 @@
-const dns = require('dns');
-const { promisify } = require('util');
-
-const dnsLookup = promisify(dns.lookup);
+import dns from "node:dns/promises";
 
 class DNSResolver {
   constructor() {
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
-    this.fallbackServers = ['8.8.8.8', '1.1.1.1', '208.67.222.222']; // Google, Cloudflare, OpenDNS
+    this.fallbackServers = ["8.8.8.8", "1.1.1.1", "208.67.222.222"]; // Google, Cloudflare, OpenDNS
+    dns.setServers(this.fallbackServers);
   }
 
-  async resolveHostname(hostname, retries = 3) {
-    const cacheKey = hostname;
+  async resolveA(hostname, retries = 3) {
+    const cacheKey = `A:${hostname}`;
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-      console.log(`📋 Using cached DNS resolution for ${hostname}: ${cached.address}`);
+      console.log(`📋 Using cached A record for ${hostname}: ${cached.address}`);
       return cached.address;
     }
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`🔍 Resolving DNS for ${hostname} (attempt ${attempt}/${retries})...`);
-        
-        // Try different DNS servers if needed
-        const result = await dnsLookup(hostname, { 
-          family: 4, // Force IPv4
-          all: false // Get first result
-        });
-        
-        const address = result.address;
-        
-        this.cache.set(cacheKey, {
-          address,
-          timestamp: Date.now()
-        });
-        
-        console.log(`✅ DNS resolved ${hostname} -> ${address}`);
+        console.log(`🔍 Resolving A record for ${hostname} (attempt ${attempt}/${retries})...`);
+        const addresses = await dns.resolve4(hostname);
+        const address = addresses[0];
+        this.cache.set(cacheKey, { address, timestamp: Date.now() });
+        console.log(`✅ Resolved A record ${hostname} -> ${address}`);
         return address;
-        
-      } catch (error) {
-        console.error(`❌ DNS resolution attempt ${attempt} failed for ${hostname}:`, error.message);
-        
-        if (attempt === retries) {
-          throw error;
-        }
-        
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      } catch (err) {
+        console.warn(`❌ A record attempt ${attempt} failed for ${hostname}: ${err.message}`);
+        if (attempt === retries) throw err;
+        await new Promise((r) => setTimeout(r, 500 * attempt));
       }
     }
   }
 
-  async preResolveMongoDBHosts() {
+  async resolveSRV(hostname, retries = 3) {
+    const cacheKey = `SRV:${hostname}`;
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      console.log(`📋 Using cached SRV for ${hostname}`);
+      return cached.records;
+    }
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🔍 Resolving SRV for ${hostname} (attempt ${attempt}/${retries})...`);
+        const records = await dns.resolveSrv(hostname);
+        this.cache.set(cacheKey, { records, timestamp: Date.now() });
+        console.log(`✅ SRV resolved ${hostname}:`, records);
+        return records;
+      } catch (err) {
+        console.warn(`❌ SRV attempt ${attempt} failed for ${hostname}: ${err.message}`);
+        if (attempt === retries) throw err;
+        await new Promise((r) => setTimeout(r, 500 * attempt));
+      }
+    }
+  }
+
+  async preResolveMongoHosts() {
     const hosts = [
-      'cluster0.yg0v7az.mongodb.net',
-      'ac-be6qcjz-shard-00-00.yg0v7az.mongodb.net',
-      'ac-be6qcjz-shard-00-01.yg0v7az.mongodb.net',
-      'ac-be6qcjz-shard-00-02.yg0v7az.mongodb.net'
+      "_mongodb._tcp.cluster0.yg0v7az.mongodb.net", // SRV record
+      "ac-be6qcjz-shard-00-00.yg0v7az.mongodb.net",
+      "ac-be6qcjz-shard-00-01.yg0v7az.mongodb.net",
+      "ac-be6qcjz-shard-00-02.yg0v7az.mongodb.net",
     ];
 
-    console.log('🔍 Pre-resolving MongoDB hostnames...');
-    
+    console.log("🔍 Pre-resolving MongoDB hostnames...");
+
     const results = [];
     for (const host of hosts) {
       try {
-        const address = await this.resolveHostname(host);
-        results.push({ host, address, success: true });
-        await new Promise(resolve => setTimeout(resolve, 200)); // Small delay between resolutions
-      } catch (error) {
-        console.warn(`⚠️  Failed to pre-resolve ${host}:`, error.message);
-        results.push({ host, address: null, success: false, error: error.message });
+        if (host.startsWith("_mongodb")) {
+          const srvRecords = await this.resolveSRV(host);
+          results.push({ host, success: true, records: srvRecords });
+        } else {
+          const address = await this.resolveA(host);
+          results.push({ host, success: true, address });
+        }
+        await new Promise((r) => setTimeout(r, 200));
+      } catch (err) {
+        console.warn(`⚠️ Failed to resolve ${host}: ${err.message}`);
+        results.push({ host, success: false, error: err.message });
       }
     }
-    
-    const successCount = results.filter(r => r.success).length;
+
+    const successCount = results.filter((r) => r.success).length;
     console.log(`✅ DNS pre-resolution completed: ${successCount}/${hosts.length} successful`);
-    
     return results;
   }
 
-  async testDNSResolution() {
-    console.log('🧪 Testing DNS resolution...');
-    
-    const testHosts = [
-      'google.com',
-      'github.com',
-      'cluster0.yg0v7az.mongodb.net'
-    ];
-    
-    for (const host of testHosts) {
+  async testCommonHosts() {
+    console.log("🧪 Testing DNS resolution for common hosts...");
+    const hosts = ["google.com", "github.com", "cluster0.yg0v7az.mongodb.net"];
+    for (const host of hosts) {
       try {
-        const address = await this.resolveHostname(host);
+        const address = await this.resolveA(host);
         console.log(`✅ ${host} -> ${address}`);
-      } catch (error) {
-        console.log(`❌ ${host} -> Failed: ${error.message}`);
+      } catch (err) {
+        console.warn(`❌ ${host} -> Failed: ${err.message}`);
       }
     }
   }
 
   clearCache() {
     this.cache.clear();
-    console.log('🗑️  DNS cache cleared');
+    console.log("🗑️ DNS cache cleared");
   }
 }
 
-module.exports = new DNSResolver();
+export default new DNSResolver();

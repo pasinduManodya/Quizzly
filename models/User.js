@@ -168,10 +168,37 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
+// Hash password before saving and ensure token limits are initialized
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password') || this.isGuest) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  // Hash password if modified and not a guest
+  if (this.isModified('password') && !this.isGuest) {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
+  
+  // Initialize token limits if not already set (for new users)
+  if (!this.tokenLimits.dailyLimit || !this.tokenLimits.monthlyLimit) {
+    try {
+      const TokenLimits = require('./TokenLimits');
+      const subscriptionType = this.getSubscriptionStatus();
+      const limits = await TokenLimits.getLimitsForSubscription(subscriptionType);
+      this.tokenLimits.dailyLimit = limits.dailyLimit;
+      this.tokenLimits.monthlyLimit = limits.monthlyLimit;
+    } catch (error) {
+      console.error('Error loading token limits in pre-save hook:', error);
+      // Use default fallback limits
+      this.tokenLimits.dailyLimit = this.tokenLimits.dailyLimit || 200;
+      this.tokenLimits.monthlyLimit = this.tokenLimits.monthlyLimit || 5000;
+    }
+  }
+  
+  // Ensure token usage dates are initialized
+  if (!this.tokenUsage.lastDailyResetDate) {
+    this.tokenUsage.lastDailyResetDate = new Date();
+  }
+  if (!this.tokenUsage.lastTokenResetDate) {
+    this.tokenUsage.lastTokenResetDate = new Date();
+  }
+  
   next();
 });
 
@@ -325,11 +352,13 @@ userSchema.methods.consumeTokens = async function(tokensUsed, inputTokens = 0, o
   };
 };
 
-userSchema.methods.getTokenUsage = function() {
+userSchema.methods.getTokenUsage = async function() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const lastDailyReset = new Date(this.tokenUsage.lastDailyResetDate);
   const lastMonthlyReset = new Date(this.tokenUsage.lastTokenResetDate);
+  
+  let needsSave = false;
   
   // Reset daily tokens if it's a new day
   if (today > lastDailyReset) {
@@ -337,6 +366,7 @@ userSchema.methods.getTokenUsage = function() {
     this.tokenUsage.dailyInputTokens = 0;
     this.tokenUsage.dailyOutputTokens = 0;
     this.tokenUsage.lastDailyResetDate = now;
+    needsSave = true;
   }
   
   // Reset monthly tokens if it's a new month
@@ -345,6 +375,16 @@ userSchema.methods.getTokenUsage = function() {
     this.tokenUsage.monthlyInputTokens = 0;
     this.tokenUsage.monthlyOutputTokens = 0;
     this.tokenUsage.lastTokenResetDate = now;
+    needsSave = true;
+  }
+  
+  // Save if any resets occurred
+  if (needsSave) {
+    try {
+      await this.save();
+    } catch (error) {
+      console.error('Error saving token usage reset:', error);
+    }
   }
   
   return {

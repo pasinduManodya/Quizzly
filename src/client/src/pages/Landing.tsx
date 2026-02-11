@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PWAInstallButton from '../components/PWAInstallButton';
-import Logo from '../components/Logo';
 
 const Landing: React.FC = () => {
   React.useEffect(() => {

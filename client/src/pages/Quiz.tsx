@@ -7,6 +7,7 @@ import Stopwatch from '../components/Stopwatch';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AILoading from '../components/AILoading';
 import { generateQuizPDF } from '../utils/pdfGenerator';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Question {
   _id: string;
@@ -26,6 +27,7 @@ interface Document {
 const Quiz: React.FC = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [document, setDocument] = useState<Document | null>(null);
   const [answers, setAnswers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,8 @@ const Quiz: React.FC = () => {
   const [essayEvalError, setEssayEvalError] = useState<Record<number, string | undefined>>({});
   const [regeneratingQuestion, setRegeneratingQuestion] = useState<Record<number, boolean>>({});
   const [showSaveNotification, setShowSaveNotification] = useState(false);
+  const [generatingMore, setGeneratingMore] = useState(false);
+  const [generateMoreError, setGenerateMoreError] = useState('');
   
 
   useEffect(() => {
@@ -149,7 +153,9 @@ const Quiz: React.FC = () => {
       total,
       correct,
       incorrect,
-      quizDuration
+      quizDuration,
+      userName: user?.email?.split('@')[0] || 'Student',
+      userEmail: user?.email || ''
     };
     
     generateQuizPDF(quizResult);
@@ -725,6 +731,13 @@ const Quiz: React.FC = () => {
                   You have answered {answers.filter(answer => answer && answer.trim() !== '').length} of {document.questions.length} questions. 
                   You can download your answers as PDF or submit to view results.
                 </p>
+                
+                {generateMoreError && (
+                  <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    {generateMoreError}
+                  </div>
+                )}
+                
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button
                     onClick={handleDownloadPDF}
@@ -732,6 +745,39 @@ const Quiz: React.FC = () => {
                   >
                     <span>📄</span>
                     <span>Download PDF</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setGeneratingMore(true);
+                        setGenerateMoreError('');
+                        const questionType = document.questions[0]?.type === 'mcq' ? 'mcq' : 'essay';
+                        const res = await documentsAPI.generateMore(document._id, {
+                          type: questionType,
+                          numQuestions: 5
+                        });
+                        // Add new questions to document
+                        setDocument(prev => prev ? {
+                          ...prev,
+                          questions: [...prev.questions, ...res.data.newQuestions]
+                        } : prev);
+                        // Extend answers array for new questions
+                        setAnswers(prev => [...prev, ...new Array(res.data.newQuestions.length).fill('')]);
+                        // Show success message
+                        setGenerateMoreError(`✅ Generated ${res.data.newQuestionsCount} new questions!`);
+                        setTimeout(() => setGenerateMoreError(''), 4000);
+                      } catch (e: any) {
+                        const msg = e?.response?.data?.message || 'Failed to generate more questions';
+                        setGenerateMoreError(msg);
+                      } finally {
+                        setGeneratingMore(false);
+                      }
+                    }}
+                    disabled={generatingMore}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-400 disabled:to-pink-400 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none flex items-center justify-center space-x-2"
+                  >
+                    <span>✨</span>
+                    <span>{generatingMore ? 'Generating...' : 'Generate More Questions'}</span>
                   </button>
                   <button
                     onClick={handleSubmitQuiz}

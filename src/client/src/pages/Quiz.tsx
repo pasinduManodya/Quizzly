@@ -7,6 +7,7 @@ import Stopwatch from '../components/Stopwatch';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AILoading from '../components/AILoading';
 import { generateQuizPDF } from '../utils/pdfGenerator';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Question {
   _id: string;
@@ -26,6 +27,7 @@ interface Document {
 const Quiz: React.FC = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [document, setDocument] = useState<Document | null>(null);
   const [answers, setAnswers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,7 +151,9 @@ const Quiz: React.FC = () => {
       total,
       correct,
       incorrect,
-      quizDuration
+      quizDuration,
+      userName: user?.email?.split('@')[0] || 'Student',
+      userEmail: user?.email || ''
     };
     
     generateQuizPDF(quizResult);
