@@ -7,7 +7,7 @@ interface StopwatchProps {
 
 const Stopwatch: React.FC<StopwatchProps> = ({ onTimeUpdate, className = '' }) => {
   const [time, setTime] = useState(0);
-  const [isRunning] = useState(true); // Auto-start
+  const isRunning = true; // Auto-start
   const [isPaused, setIsPaused] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
