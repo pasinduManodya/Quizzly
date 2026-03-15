@@ -43,15 +43,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     switch (variant) {
       case 'success':
         return {
-          bg: 'bg-gradient-to-r from-green-500 to-emerald-600',
-          glow: 'shadow-green-500/50',
-          text: 'text-green-700'
+          bg: 'bg-gradient-to-r from-gray-700 to-gray-900',
+          glow: 'shadow-gray-700/50',
+          text: 'text-gray-800'
         };
       case 'warning':
         return {
-          bg: 'bg-gradient-to-r from-orange-500 to-red-500',
-          glow: 'shadow-orange-500/50',
-          text: 'text-orange-700'
+          bg: 'bg-gradient-to-r from-gray-700 to-gray-900',
+          glow: 'shadow-gray-700/50',
+          text: 'text-gray-800'
         };
       case 'info':
         return {

@@ -1023,73 +1023,31 @@ async function generateSummary(text) {
     const aiService = await createAIService();
     console.log('✅ AI service initialized successfully');
     
-    const prompt = `You are an expert educational content writer specializing in creating professional, well-structured study summaries.
+    const prompt = `Create a concise, well-structured study summary of the following material.
 
-Your task is to create a comprehensive, formal, and easy-to-read summary of the following study material.
-
-**REQUIRED STRUCTURE:**
+**FORMAT:**
 
 ### Overview
-[Provide a brief introduction to the topic and what the material covers]
+Brief introduction to the topic
 
-### Key Concepts
-[List and explain the main concepts, theories, or principles. Use bullet points with bold headings:]
-- **Concept Name**: Clear, concise explanation
-- **Concept Name**: Clear, concise explanation
+### Key Points
+- **Main Concept 1**: Explanation
+- **Main Concept 2**: Explanation
+- **Main Concept 3**: Explanation
 
-### Important Definitions
-[Define key terms and terminology used in the material:]
-- **Term**: Professional definition with context
-- **Term**: Professional definition with context
+### Important Terms
+- **Term**: Definition
+- **Term**: Definition
 
-### Main Points
-[Organize the core content into logical sections with clear headers:]
+### Key Takeaways
+Brief bullet points of most important information
 
-#### Topic 1
-- Key point with detailed explanation
-- Supporting information
-- Relevant examples
-
-#### Topic 2
-- Key point with detailed explanation
-- Supporting information
-- Relevant examples
-
-### Formulas and Equations
-[If applicable, list important formulas with explanations:]
-- \`Formula\`: Explanation of what it represents and when to use it
-
-### Practical Applications
-[Describe how this knowledge applies in real-world scenarios]
-
-### Summary
-[Provide a concise recap of the most important takeaways]
-
-**FORMATTING GUIDELINES:**
-- Use ### for main section headers
-- Use #### for subsection headers
-- Use **bold** for key terms, concepts, and emphasis
-- Use *italics* for definitions and important notes
-- Use bullet points (-) for lists
-- Use numbered lists (1., 2., 3.) for sequential steps or processes
-- Use > for important quotes, warnings, or key insights
-- Use \`code formatting\` for formulas, equations, or technical terms
-- Keep paragraphs concise and focused
-- Use professional, formal language
-- Ensure proper spacing between sections
-- Make it scannable and easy to read
-
-**CONTENT QUALITY:**
-- Be comprehensive yet concise
-- Use clear, professional language
-- Maintain logical flow and organization
-- Include all important information
-- Make it educational and informative
+Use **bold** for key terms, bullet points for lists, and keep it concise and scannable.
 
 Study Material:
-${text.substring(0, 12000)}
+${text.substring(0, 10000)}
 
-Provide a complete, well-formatted, professional summary following the structure above.`;
+Provide a complete summary.`;
     
     console.log('📝 Calling AI service for summary...');
     const result = await aiService.callAI(prompt);
@@ -1103,11 +1061,10 @@ Provide a complete, well-formatted, professional summary following the structure
   } catch (error) {
     console.error('❌ Summary generation error:', error.message);
     console.error('❌ Error details:', error);
-    console.log('🔄 Falling back to basic summary...');
-    return {
-      response: generateFallbackSummary(text),
-      tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
-    };
+    
+    // Re-throw the error instead of falling back to basic summary
+    // This ensures the user sees the actual error and can fix the AI configuration
+    throw new Error(`Failed to generate AI summary: ${error.message}`);
   }
 }
 
@@ -1598,10 +1555,19 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
     const document = await Document.findOne({ _id: req.params.id, user: req.user._id });
     if (!document) return res.status(404).json({ message: 'Document not found' });
     
-    // Check if summary is already cached
-    if (document.summary && document.summary.trim().length > 0) {
+    // Check for force regeneration parameter
+    const forceRegenerate = req.body.force === true;
+    
+    // Check if summary is already cached (unless force regeneration is requested)
+    if (!forceRegenerate && document.summary && document.summary.trim().length > 0) {
       console.log('✅ Returning cached summary (no tokens consumed for cached content)');
       return res.json({ summary: document.summary, cached: true });
+    }
+    
+    // If force regeneration, clear the old cached summary
+    if (forceRegenerate) {
+      console.log('🔄 Force regeneration requested - clearing cached summary');
+      document.summary = '';
     }
     
     // Get text for processing (condensed if available)
@@ -1667,7 +1633,20 @@ router.post('/:id/summary', auth, tokenUsageMiddleware(1000), async (req, res) =
     res.json({ summary: result.response, cached: false });
   } catch (error) {
     console.error('Generate summary error:', error);
-    res.status(500).json({ message: 'Failed to generate summary' });
+    
+    // Provide specific error message based on error type
+    let errorMessage = 'Failed to generate summary';
+    if (error.message.includes('API key')) {
+      errorMessage = 'AI service not configured. Please contact administrator to set up AI configuration.';
+    } else if (error.message.includes('credits') || error.message.includes('quota')) {
+      errorMessage = 'AI service quota exceeded. Please try again later or contact administrator.';
+    } else if (error.message.includes('No AI configuration')) {
+      errorMessage = 'AI service not configured. Please contact administrator to set up AI configuration.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(500).json({ message: errorMessage });
   }
 });
 
@@ -1827,22 +1806,21 @@ router.post('/:id/generate-more', auth, tokenUsageMiddleware(2000), async (req, 
     // Find uncovered points
     const uncoveredPoints = document.importantPoints.filter(p => !p.covered);
     
+    // If all main points are covered, generate questions on smaller, more detailed aspects
+    let questionGenerationMode = 'uncovered';
+    let pointsToUse = uncoveredPoints;
+    
     if (uncoveredPoints.length === 0) {
-      return res.status(400).json({ 
-        message: 'All important points have been covered by existing questions',
-        totalPoints: document.importantPoints.length,
-        coveredPoints: document.importantPoints.length
-      });
+      console.log('📋 All main points covered. Generating questions on smaller, detailed aspects...');
+      questionGenerationMode = 'detailed';
+      // Use all points but focus on deeper, more granular aspects
+      pointsToUse = document.importantPoints;
     }
     
-    console.log(`📝 Generating ${numQuestions} new questions from ${uncoveredPoints.length} uncovered points...`);
+    console.log(`📝 Generating ${numQuestions} new questions (mode: ${questionGenerationMode})...`);
     
-    // Generate questions for uncovered points
+    // Generate questions
     const aiService = await createAIService();
-    const uncoveredPointsList = uncoveredPoints
-      .slice(0, Math.max(uncoveredPoints.length, numQuestions * 2))
-      .map((p, i) => `${p.id}. [${p.category}] ${p.point}: ${p.details}`)
-      .join('\n');
     
     let typeInstructions = '';
     if (type === 'mcq') {
@@ -1853,9 +1831,18 @@ router.post('/:id/generate-more', auth, tokenUsageMiddleware(2000), async (req, 
       typeInstructions = `Generate only structured essay questions that require multi-part answers. Do NOT include any multiple choice questions. CRITICAL: Each question MUST have multiple parts labeled as a), b), c), etc.`;
     }
     
-    const prompt = `You are an expert educational content creator. Generate exactly ${numQuestions} new high-quality questions from these UNCOVERED important points that haven't been tested yet.
+    let prompt;
+    
+    if (questionGenerationMode === 'uncovered') {
+      // Original mode: focus on uncovered points
+      const uncoveredPointsList = pointsToUse
+        .slice(0, Math.max(pointsToUse.length, numQuestions * 2))
+        .map((p, i) => `${p.id}. [${p.category}] ${p.point}: ${p.details}`)
+        .join('\n');
+      
+      prompt = `You are an expert educational content creator. Generate exactly ${numQuestions} new high-quality questions from these UNCOVERED important points that haven't been tested yet.
 
-UNCOVERED IMPORTANT POINTS (${uncoveredPoints.length} total):
+UNCOVERED IMPORTANT POINTS (${pointsToUse.length} total):
 ${uncoveredPointsList}
 
 INSTRUCTIONS:
@@ -1880,7 +1867,49 @@ For short/essay/structured questions:
 - Include a comprehensive explanation
 
 Study Material (for context):
-${textToUse.substring(0, 30000)}
+${textToUse.substring(0, 30000)}`;
+    } else {
+      // Detailed mode: generate questions on smaller, more granular aspects
+      const existingQuestions = document.questions.map(q => q.question).join('\n');
+      
+      prompt = `You are an expert educational content creator. All main topics have been covered, but now generate ${numQuestions} NEW questions focusing on SMALLER, MORE DETAILED, and MORE GRANULAR aspects of the material.
+
+EXISTING QUESTIONS (to avoid repetition):
+${existingQuestions.substring(0, 5000)}
+
+INSTRUCTIONS FOR DETAILED QUESTIONS:
+1. Generate exactly ${numQuestions} questions on SMALLER, MORE SPECIFIC details
+2. Focus on:
+   - Specific examples, cases, or scenarios mentioned in the text
+   - Numerical values, dates, names, or specific terminology
+   - Subtle distinctions and nuances between concepts
+   - Detailed explanations of processes or mechanisms
+   - Specific applications or implications of main concepts
+   - Edge cases or special conditions
+   - Supporting details that reinforce main points
+3. Do NOT repeat any existing questions - these must be COMPLETELY NEW
+4. Questions should test DEEPER understanding of finer details
+5. Use professional, exam-style language
+6. Questions should be independent and not reference "according to the document"
+7. Test granular knowledge that complements the main topics already covered
+
+${typeInstructions}
+
+For multiple choice questions:
+- Provide 4 options (A, B, C, D)
+- Mark the correct answer
+- Include a comprehensive explanation
+
+For short/essay/structured questions:
+- Ask questions that require 1-3 sentence answers
+- Provide the expected answer
+- Include a comprehensive explanation
+
+Study Material (analyze for SMALL DETAILS):
+${textToUse.substring(0, 30000)}`;
+    }
+    
+    prompt += `
 
 Format your response as JSON:
 {
@@ -2071,79 +2100,87 @@ router.post('/:id/simplified-summary', auth, tokenUsageMiddleware(1500), async (
     }
     const aiService = await createAIService();
 
-    const prompt = `You are an expert educational content writer who specializes in making complex academic and technical content accessible to all learners.
+    const prompt = `You are an expert at explaining complex topics to people with limited education or learning difficulties. Your goal is to make EVERYTHING extremely simple and easy to understand.
 
-Your task is to create a SIMPLIFIED, professional, and easy-to-read version of the following document.
+Create an ULTRA-SIMPLIFIED version of this document that even a 10-year-old or someone with learning difficulties can understand.
 
-**REQUIRED STRUCTURE:**
+**CRITICAL SIMPLIFICATION RULES:**
+1. Use ONLY simple, common words (like: use, make, do, get, have, see, know)
+2. NO technical terms unless absolutely necessary - if you must use them, explain them immediately in parentheses
+3. Use VERY SHORT sentences (maximum 10-15 words per sentence)
+4. Explain EVERYTHING like you're talking to a child
+5. Use lots of everyday examples and comparisons (like comparing to toys, games, food, daily activities)
+6. Break complex ideas into tiny, simple steps
+7. Repeat important points in different simple ways
 
-### Introduction
-[Provide a simple, clear introduction to the topic in plain language]
+**REQUIRED STRUCTURE - Use EXACTLY this markdown format:**
 
-### Main Topics (Simplified)
-[Break down the content into clear sections with simple explanations:]
+### What This Is About
 
-#### Topic 1: [Simple Title]
-**What it means:** [Explain in simple, everyday language]
+[In 2-3 very simple sentences, say what the topic is. Use words a child would understand.]
 
-**Key points:**
-- [Simple explanation of first point]
-- [Simple explanation of second point]
-- [Simple explanation of third point]
+### Main Ideas (Made Super Simple)
 
-**Example:** [Provide a relatable, real-world example]
+#### Idea 1: [Very Simple Title - 3-4 words max]
 
-#### Topic 2: [Simple Title]
-**What it means:** [Explain in simple, everyday language]
+**In simple words:**
+[Explain this in 1-2 sentences using only common, everyday words]
 
-**Key points:**
-- [Simple explanation of first point]
-- [Simple explanation of second point]
+**Think of it like this:**
+[Give a simple comparison to something familiar, like toys, food, or daily activities]
 
-**Example:** [Provide a relatable, real-world example]
+**Why it matters:**
+[In one simple sentence, explain why this is important]
 
-### Important Terms (In Simple Words)
-[Define key terms using simple language:]
-- **Complex Term** → Simple explanation in everyday words
-- **Complex Term** → Simple explanation in everyday words
+#### Idea 2: [Very Simple Title - 3-4 words max]
 
-### How This Applies to Real Life
-[Explain practical applications using simple examples]
+**In simple words:**
+[Explain this in 1-2 sentences using only common, everyday words]
 
-### Quick Summary
-[Provide a brief recap in simple, clear language]
+**Think of it like this:**
+[Give a simple comparison to something familiar]
 
-**SIMPLIFICATION GUIDELINES:**
-1. **Replace ALL complex words** with simple, everyday alternatives
-2. **Use short sentences** - Break long, complicated sentences into shorter ones
-3. **Add explanations** - Explain concepts that might be confusing
-4. **Use analogies and examples** - Compare to familiar, everyday things
-5. **Break down complex ideas** - Split into smaller, easy-to-understand parts
-6. **Use conversational tone** - Write as if explaining to a friend
-7. **Keep all information** - Don't remove important content, just make it simpler
-8. **Make it accessible** - Anyone should be able to understand it
+**Why it matters:**
+[In one simple sentence, explain why this is important]
 
-**FORMATTING GUIDELINES:**
-- Use ### for main sections
-- Use #### for subsections
-- Use **bold** for important terms and concepts
-- Use bullet points (-) for lists
-- Use simple, clear language throughout
-- Keep paragraphs short and focused
-- Add examples and analogies
-- Use proper spacing for readability
+[Continue with more ideas if needed - use "Idea 3:", "Idea 4:", etc. - but keep each one very short and simple]
 
-**QUALITY STANDARDS:**
-- Professional yet accessible
-- Comprehensive but simple
-- Well-organized and structured
-- Easy to read and understand
-- Maintains all important information
+### Hard Words Made Easy
+
+[List any difficult words and explain them in the simplest way possible:]
+- **[Word]** = [Explain using only simple, common words]
+- **[Word]** = [Explain using only simple, common words]
+
+### How This Helps You
+
+[In 2-3 simple sentences, explain how this information is useful in everyday life]
+
+### Remember These Points
+
+- [One simple fact - use very basic words]
+- [One simple fact - use very basic words]
+- [One simple fact - use very basic words]
+
+**WRITING STYLE:**
+- Write like you're talking to a friend
+- Use "you" and "we" to make it personal
+- Use lots of examples from daily life
+- Keep everything positive and encouraging
+- Avoid ALL jargon and technical language
+- NO HTML, NO code, NO emojis - ONLY plain text with markdown formatting
+- Use professional, clean formatting without decorative symbols
+
+**SENTENCE EXAMPLES:**
+❌ BAD: "The implementation of parallel operation facilitates redundancy."
+✅ GOOD: "Using two machines together means if one breaks, the other keeps working."
+
+❌ BAD: "This methodology ensures optimal resource allocation."
+✅ GOOD: "This way of doing things helps us use what we have in the best way."
 
 Document Content:
 ${textToUse}
 
-Provide a complete, well-formatted, simplified summary that anyone can understand.`;
+IMPORTANT: Output ONLY the simplified summary in markdown format. Do NOT include HTML, reveal.js code, emojis, or decorative symbols. Use clean, professional markdown formatting only (###, ####, **, -, etc.).`;
 
     try {
       const result = await aiService.callAI(prompt);

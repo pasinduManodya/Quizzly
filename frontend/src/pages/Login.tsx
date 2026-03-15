@@ -1,133 +1,179 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import AdminLoginDialog from '../components/AdminLoginDialog';
-import Logo from '../components/Logo';
+import Background from '../components/LoginComponents/Background';
+import Toast from '../components/LoginComponents/Toast';
+import QuizzlyLogo from '../components/LoginComponents/QuizzlyLogo';
+import LoginView from '../components/LoginComponents/LoginView';
+import SignupView from '../components/LoginComponents/SignupView';
+import ForgotPasswordView from '../components/LoginComponents/ForgotPasswordView';
+import AdminLoginView from '../components/LoginComponents/AdminLoginView';
+import '../styles/login.css';
+
+type ViewType = 'login' | 'signup' | 'forgot' | 'admin';
+type ToastType = 'err' | 'warn' | 'ok' | 'info';
+
+interface ToastData {
+  id: number;
+  type: ToastType;
+  title: string;
+  msg: string;
+  ms: number;
+}
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showAdminDialog, setShowAdminDialog] = useState(false);
-  const { login } = useAuth();
+  const location = useLocation();
+  const isAdminRoute = location.pathname === '/login/admin';
+  const [currentView, setCurrentView] = useState<ViewType>(isAdminRoute ? 'admin' : 'login');
+  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  useEffect(() => {
+    setTimeout(() => {
+      if (isAdminRoute) {
+        notify('info', 'Admin Panel', 'Enter your administrator credentials 🔐', 3500);
+      } else {
+        notify('info', 'Quizzly', 'Sign in to resume your learning streak ✨', 3500);
+      }
+    }, 600);
+  }, [isAdminRoute]);
 
+  const notify = (type: ToastType, title: string, msg: string, ms: number = 4000) => {
+    const id = Date.now();
+    const toast: ToastData = { id, type, title, msg, ms };
+    setToasts(prev => [...prev, toast]);
+    
+    setTimeout(() => {
+      removeToast(id);
+    }, ms);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const goToView = (viewId: ViewType) => {
+    if (currentView === viewId) return;
+    setCurrentView(viewId);
+  };
+
+  const handleLogin = async (email: string, password: string) => {
     try {
       await login(email, password);
-      navigate('/dashboard');
+      notify('ok', 'Signed in!', 'Welcome back - loading your dashboard.');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 800);
     } catch (error: any) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+      notify('err', 'Login failed', error.message || 'Invalid credentials');
     }
   };
 
-  // Minimal page: email + password only
+  const handleAdminLogin = async (email: string, password: string) => {
+    try {
+      await login(email, password);
+      notify('ok', 'Admin access granted!', 'Loading admin dashboard...');
+      setTimeout(() => {
+        navigate('/admin-dashboard');
+      }, 800);
+    } catch (error: any) {
+      notify('err', 'Admin login failed', error.message || 'Invalid admin credentials');
+    }
+  };
+
+  const handleSignup = async (name: string, email: string, password: string) => {
+    try {
+      await signup(email, password);
+      const firstName = name.split(' ')[0];
+      notify('ok', 'Account created!', `Welcome, ${firstName}! Let's start learning.`);
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 800);
+    } catch (error: any) {
+      notify('err', 'Signup failed', error.message || 'Could not create account');
+    }
+  };
+
+  const handleForgot = (email: string) => {
+    notify('info', 'Reset link sent!', `Check your inbox at ${email}. May take a minute.`, 6000);
+    setTimeout(() => goToView('login'), 1200);
+  };
+
+  const handleGuest = async () => {
+    try {
+      await login('', '', true);
+      notify('info', 'Guest mode', "Progress won't be saved. Sign up anytime to keep it.", 5000);
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
+    } catch (error: any) {
+      notify('err', 'Guest login failed', error.message || 'Could not continue as guest');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-md card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <Logo className="h-8 w-8 rounded-lg object-cover mr-2" size={32} />
-            <h1 className="text-xl font-semibold">Quizzly</h1>
-          </div>
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm bg-white">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 9.414V17a1 1 0 001 1h3a1 1 0 001-1v-3h2v3a1 1 0 001 1h3a1 1 0 001-1V9.414l.293.293a1 1 0 001.414-1.414l-7-7z" clipRule="evenodd"/></svg>
-            Back to Home
-          </Link>
-        </div>
-        <h2 className="text-2xl font-bold text-center text-gray-900">Sign in</h2>
-        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-200 placeholder-gray-500 text-gray-900 rounded-t-lg focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-200 placeholder-gray-500 text-gray-900 rounded-b-lg focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-3 px-4 text-sm font-medium btn-primary"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">New here?</span>
-            <Link to="/signup" className="text-primary hover:text-primary-dark">Create an account</Link>
-          </div>
-          <div className="text-center text-sm">
-            <span className="text-gray-600">Or </span>
-            <button
-              type="button"
-              onClick={async () => { try { await login('', '', true); navigate('/dashboard'); } catch (e:any) { setError(e.message);} }}
-              className="text-primary hover:text-primary-dark"
-            >
-              continue as guest
-            </button>
-          </div>
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setShowAdminDialog(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                <path fillRule="evenodd" d="M9.504 1.132a1 1 0 01.992 0l1.75 1a1 1 0 11-.992 1.736L10 3.152l-1.254.716a1 1 0 11-.992-1.736l1.75-1zM5.618 4.504a1 1 0 01-.372 1.364L5.016 6l.23.132a1 1 0 11-.992 1.736L3.12 7.214a1 1 0 01-.992-1.736l1.75-1a1 1 0 011.364.372zm8.764 0a1 1 0 011.364-.372l1.75 1a1 1 0 11-.992 1.736l-1.134.654a1 1 0 11-.992-1.736l.23-.132.23-.132zM14.017 9.149a1 1 0 01.372-1.364l1.75-1a1 1 0 11.992 1.736l-1.134.654a1 1 0 11-.992-1.736l.23-.132-.23-.132zm-8.764 0a1 1 0 00-.372-1.364l-1.75-1a1 1 0 10-.992 1.736l1.134.654a1 1 0 10.992-1.736l-.23-.132.23-.132zM17.25 16.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM4.75 16.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" clipRule="evenodd"/>
-              </svg>
-              Admin Panel
-            </button>
-            <p className="text-xs text-gray-500 mt-2">Click to open admin login dialog</p>
-          </div>
-        </form>
-      </div>
+    <div className="login-page-container">
+      <Background />
       
-      <AdminLoginDialog 
-        isOpen={showAdminDialog} 
-        onClose={() => setShowAdminDialog(false)} 
-      />
+      <Link to="/" className="btn-home">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 1.5L3.5 6 8 10.5"/>
+        </svg>
+        Back to home
+      </Link>
+
+      <div id="toasts">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            type={toast.type}
+            title={toast.title}
+            msg={toast.msg}
+            ms={toast.ms}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
+      <div className="wrap">
+        <div className="card" id="card">
+          <QuizzlyLogo />
+
+          {currentView === 'login' && (
+            <LoginView
+              onLogin={handleLogin}
+              onGuest={handleGuest}
+              onSwitchToSignup={() => goToView('signup')}
+              onForgotPassword={() => goToView('forgot')}
+              notify={notify}
+            />
+          )}
+
+          {currentView === 'signup' && (
+            <SignupView
+              onSignup={handleSignup}
+              onSwitchToLogin={() => goToView('login')}
+              notify={notify}
+            />
+          )}
+
+          {currentView === 'forgot' && (
+            <ForgotPasswordView
+              onForgot={handleForgot}
+              onBackToLogin={() => goToView('login')}
+              notify={notify}
+            />
+          )}
+
+          {currentView === 'admin' && (
+            <AdminLoginView
+              onLogin={handleAdminLogin}
+              notify={notify}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };

@@ -10,6 +10,7 @@ import Quiz from './pages/Quiz';
 import ResultSheet from './pages/ResultSheet';
 import Revision from './pages/Revision';
 import Favorites from './pages/Favorites';
+import SummaryPage from './pages/SummaryPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import About from './pages/About';
@@ -32,6 +33,7 @@ function App() {
           <PWAStatusIndicator />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/login/admin" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />
@@ -60,6 +62,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Quiz />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/summary/:documentId" 
+              element={
+                <ProtectedRoute>
+                  <SummaryPage />
                 </ProtectedRoute>
               } 
             />

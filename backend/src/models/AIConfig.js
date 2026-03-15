@@ -9,7 +9,8 @@ const aiConfigSchema = new mongoose.Schema({
   },
   apiKey: {
     type: String,
-    required: true
+    required: true,
+    select: true
   },
   model: {
     type: String,

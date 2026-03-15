@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { quizAPI } from '../services/api';
 import { generateQuizPDF } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
+import '../styles/revision.css';
 
 interface QuizResult {
   _id: string;
@@ -298,131 +299,131 @@ const Revision: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="revision-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', border: '3px solid #4361ee', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+          <p style={{ fontSize: '1rem', color: '#4a4a6a', fontFamily: 'Outfit, sans-serif' }}>Loading revision history...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="revision-page">
       {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Revision History</h1>
-              <p className="text-gray-600">Track your learning progress and review mistakes</p>
-            </div>
-            <div className="flex space-x-3">
-              {quizHistory.length > 0 && (
-                <button
-                  onClick={handleDeleteAll}
-                  disabled={deletingAll}
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
-                    deletingAll
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-red-600 hover:bg-red-700'
-                  } text-white`}
-                >
-                  {deletingAll ? '⏳ Deleting All...' : '🗑️ Delete All'}
-                </button>
-              )}
+      <header className="revision-header">
+        <div className="revision-header-inner">
+          <div className="revision-title-section">
+            <h1>Revision History</h1>
+            <p>Track your learning progress and review mistakes</p>
+          </div>
+          <div className="revision-header-actions">
+            {quizHistory.length > 0 && (
               <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
+                onClick={handleDeleteAll}
+                disabled={deletingAll}
+                className="dash-btn"
+                style={{ opacity: deletingAll ? 0.5 : 1, cursor: deletingAll ? 'not-allowed' : 'pointer' }}
               >
-                Back to Dashboard
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                {deletingAll ? 'Deleting...' : 'Delete All'}
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="dash-btn"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Back to Dashboard
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="revision-main">
         {/* Tab Navigation */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white rounded-lg shadow">
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8 px-6">
-                <button
-                  onClick={() => setActiveTab('history')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'history'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Quiz History ({quizHistory.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('mistakes')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'mistakes'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Mistakes to Review ({revisionItems.length})
-                </button>
-              </nav>
-            </div>
+        <div className="revision-tabs">
+          <div className="revision-tabs-nav">
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`revision-tab ${activeTab === 'history' ? 'active' : ''}`}
+            >
+              Quiz History ({quizHistory.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('mistakes')}
+              className={`revision-tab ${activeTab === 'mistakes' ? 'active' : ''}`}
+            >
+              Mistakes to Review ({revisionItems.length})
+            </button>
           </div>
         </div>
 
         {/* Quiz History Tab */}
         {activeTab === 'history' && (
-          <div className="px-4 py-6 sm:px-0">
+          <div>
             {quizHistory.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-6 text-center">
-                <p className="text-gray-500">No quiz history available. Take your first quiz to see results here!</p>
+              <div className="empty-state">
+                <svg className="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="empty-state-title">No Quiz History</h3>
+                <p className="empty-state-text">Take your first quiz to see results here!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {quizHistory.map((quiz) => (
-                  <div key={quiz._id} className="bg-white overflow-hidden shadow rounded-lg">
-                    <div className="px-4 py-5 sm:p-6">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">
+              <div className="quiz-grid">
+                {quizHistory.map((quiz, index) => {
+                  const percentage = Math.round((quiz.score / quiz.totalQuestions) * 100);
+                  const scoreClass = percentage >= 80 ? 'excellent' : percentage >= 60 ? 'good' : percentage >= 40 ? 'average' : 'poor';
+                  
+                  return (
+                    <div key={quiz._id} className="quiz-card" style={{ animationDelay: `${index * 0.05}s` }}>
+                      <h3 className="quiz-card-title">
                         {quiz.document?.title || 'Unknown Document'}
                       </h3>
-                      <div className="mt-2">
-                        <div className={`text-2xl font-bold ${getScoreColor(quiz.score, quiz.totalQuestions)}`}>
+                      <div className="quiz-score">
+                        <div className={`quiz-score-value ${scoreClass}`}>
                           {quiz.score}/{quiz.totalQuestions}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {Math.round((quiz.score / quiz.totalQuestions) * 100)}% correct
-                        </div>
+                        <div className="quiz-percentage">{percentage}% correct</div>
                       </div>
-                      <p className="mt-2 text-sm text-gray-500">
+                      <p className="quiz-date">
                         Completed: {new Date(quiz.completedAt).toLocaleDateString()}
                       </p>
-                      <div className="mt-4 flex space-x-2">
+                      <div className="quiz-card-actions">
                         <button
                           onClick={() => handleViewQuizResult(quiz._id)}
-                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium"
+                          className="dash-btn dash-btn-primary"
+                          style={{ flex: 1 }}
                         >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
                           View Details
                         </button>
                         <button
-                          onClick={() => {
-                            console.log('🖱️ DELETE BUTTON CLICKED IN UI');
-                            console.log('🖱️ Quiz ID from button:', quiz._id);
-                            handleDeleteRevision(quiz._id);
-                          }}
+                          onClick={() => handleDeleteRevision(quiz._id)}
                           disabled={deletingQuizId === quiz._id}
-                          className={`px-4 py-2 rounded-md text-sm font-medium min-w-[50px] cursor-pointer ${
-                            deletingQuizId === quiz._id
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : 'bg-red-600 hover:bg-red-700'
-                          } text-white`}
+                          className="dash-btn"
+                          style={{ opacity: deletingQuizId === quiz._id ? 0.5 : 1, cursor: deletingQuizId === quiz._id ? 'not-allowed' : 'pointer' }}
                           title="Delete this quiz"
                         >
-                          {deletingQuizId === quiz._id ? '⏳' : '🗑️'}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -430,78 +431,69 @@ const Revision: React.FC = () => {
 
         {/* Mistakes Tab */}
         {activeTab === 'mistakes' && (
-          <div className="px-4 py-6 sm:px-0">
+          <div>
             {revisionItems.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-6 text-center">
-                <div className="text-green-600 mb-4">
-                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Great job!</h3>
-                <p className="text-gray-500">No mistakes to review. Keep up the excellent work!</p>
+              <div className="empty-state">
+                <svg className="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: '#10b981' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="empty-state-title">Great Job!</h3>
+                <p className="empty-state-text">No mistakes to review. Keep up the excellent work!</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div>
                 {revisionItems.map((item, index) => (
-                  <div key={index} className="bg-white rounded-lg shadow p-6">
-                    <div className="flex justify-between items-start mb-4">
+                  <div key={index} className="mistake-card" style={{ animationDelay: `${index * 0.05}s` }}>
+                    <div className="mistake-header">
                       <div>
-                        <h3 className="text-lg font-medium text-gray-900">
-                          {item.documentTitle}
-                        </h3>
-                        <p className="text-sm text-gray-500">
+                        <h3 className="mistake-title">{item.documentTitle}</h3>
+                        <p className="mistake-date">
                           Quiz taken: {new Date(item.completedAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="mistake-actions">
                         <button
                           onClick={() => handleViewQuizResult(item.quizResultId)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
+                          className="dash-btn dash-btn-primary"
                         >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
                           View Quiz
                         </button>
                         <button
-                          onClick={() => {
-                            console.log('🖱️ DELETE BUTTON CLICKED IN MISTAKES TAB');
-                            console.log('🖱️ Quiz Result ID from button:', item.quizResultId);
-                            handleDeleteRevision(item.quizResultId);
-                          }}
+                          onClick={() => handleDeleteRevision(item.quizResultId)}
                           disabled={deletingQuizId === item.quizResultId}
-                          className={`px-3 py-1 rounded-md text-sm ${
-                            deletingQuizId === item.quizResultId
-                              ? 'bg-gray-400 cursor-not-allowed'
-                              : 'bg-red-600 hover:bg-red-700'
-                          } text-white`}
+                          className="dash-btn"
+                          style={{ opacity: deletingQuizId === item.quizResultId ? 0.5 : 1, cursor: deletingQuizId === item.quizResultId ? 'not-allowed' : 'pointer' }}
                         >
-                          {deletingQuizId === item.quizResultId ? '⏳' : '🗑️ Delete'}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
                         </button>
                       </div>
                     </div>
                     
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Question:</h4>
-                        <p className="text-gray-700">{item.question}</p>
+                    <div className="mistake-question">
+                      {item.question}
+                    </div>
+                    
+                    <div className="mistake-answers">
+                      <div className="answer-box user-answer">
+                        <div className="answer-label user">Your Answer</div>
+                        <div className="answer-text">{item.userAnswer || 'No answer provided'}</div>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h4 className={`font-medium mb-1 ${item.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                            Your Answer:
-                          </h4>
-                          <p className="text-gray-700">{item.userAnswer || 'No answer provided'}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-green-600 mb-1">Correct Answer:</h4>
-                          <p className="text-gray-700">{item.correctAnswer}</p>
-                        </div>
+                      <div className="answer-box correct-answer">
+                        <div className="answer-label correct">Correct Answer</div>
+                        <div className="answer-text">{item.correctAnswer}</div>
                       </div>
-                      
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-1">Explanation:</h4>
-                        <p className="text-gray-700">{item.explanation}</p>
-                      </div>
+                    </div>
+                    
+                    <div className="explanation-box">
+                      <div className="explanation-label">Explanation</div>
+                      <div className="explanation-text">{item.explanation}</div>
                     </div>
                   </div>
                 ))}
@@ -511,26 +503,24 @@ const Revision: React.FC = () => {
         )}
 
         {/* Statistics Summary */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Learning Statistics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-blue-600">{quizHistory.length}</div>
-                <div className="text-sm text-gray-500">Total Quizzes</div>
+        <div className="stats-card">
+          <h3 className="stats-title">Learning Statistics</h3>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <div className="stat-value blue">{quizHistory.length}</div>
+              <div className="stat-label">Total Quizzes</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-value red">{revisionItems.length}</div>
+              <div className="stat-label">Mistakes to Review</div>
+            </div>
+            <div className="stat-item">
+              <div className="stat-value green">
+                {quizHistory.length > 0 
+                  ? Math.round(quizHistory.reduce((acc, quiz) => acc + (quiz.score / quiz.totalQuestions), 0) / quizHistory.length * 100)
+                  : 0}%
               </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-red-600">{revisionItems.length}</div>
-                <div className="text-sm text-gray-500">Mistakes to Review</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600">
-                  {quizHistory.length > 0 
-                    ? Math.round(quizHistory.reduce((acc, quiz) => acc + (quiz.score / quiz.totalQuestions), 0) / quizHistory.length * 100)
-                    : 0}%
-                </div>
-                <div className="text-sm text-gray-500">Average Score</div>
-              </div>
+              <div className="stat-label">Average Score</div>
             </div>
           </div>
         </div>
@@ -538,30 +528,29 @@ const Revision: React.FC = () => {
 
       {/* Quiz Details Modal */}
       {showQuizModal && selectedQuiz && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2 className="modal-title">
                 Quiz Details: {selectedQuiz.document?.title || 'Unknown Document'}
               </h2>
-              <div className="flex space-x-2">
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   onClick={handleDownloadQuizPDF}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2"
+                  className="dash-btn dash-btn-primary"
                 >
-                  <span>📄</span>
-                  <span>Download PDF</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download PDF
                 </button>
-                <button
-                  onClick={() => setShowQuizModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
+                <button onClick={() => setShowQuizModal(false)} className="modal-close">×</button>
               </div>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="modal-body">
               {/* Quiz Summary */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
@@ -661,10 +650,10 @@ const Revision: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex justify-end p-6 border-t">
+            <div className="modal-footer">
               <button
                 onClick={() => setShowQuizModal(false)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md"
+                className="dash-btn dash-btn-primary"
               >
                 Close
               </button>
@@ -675,38 +664,20 @@ const Revision: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-lg font-medium text-gray-900">Delete Quiz</h3>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-sm text-gray-500">
+        <div className="modal-overlay">
+          <div className="modal-content confirm-modal">
+            <div className="modal-body">
+              <svg className="confirm-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <h3 className="confirm-title">Delete Quiz</h3>
+              <p className="confirm-text">
                 Are you sure you want to delete this quiz from your history? This action cannot be undone.
               </p>
             </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelDelete}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Delete Quiz
-              </button>
+            <div className="modal-footer">
+              <button onClick={cancelDelete} className="dash-btn">Cancel</button>
+              <button onClick={confirmDelete} className="dash-btn" style={{ background: '#ef4444', color: 'white', borderColor: '#ef4444' }}>Delete Quiz</button>
             </div>
           </div>
         </div>
@@ -714,37 +685,21 @@ const Revision: React.FC = () => {
 
       {/* Delete All Confirmation Modal */}
       {showDeleteAllConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center mb-4">
-              <div className="flex-shrink-0">
-                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-lg font-medium text-gray-900">Delete All Quizzes</h3>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-sm text-gray-500">
+        <div className="modal-overlay">
+          <div className="modal-content confirm-modal">
+            <div className="modal-body">
+              <svg className="confirm-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <h3 className="confirm-title">Delete All Quizzes</h3>
+              <p className="confirm-text">
                 Are you sure you want to delete ALL {quizHistory.length} quizzes from your history? 
                 This action cannot be undone and will permanently remove all your quiz data.
               </p>
             </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelDeleteAll}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeleteAll}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
+            <div className="modal-footer">
+              <button onClick={cancelDeleteAll} className="dash-btn">Cancel</button>
+              <button onClick={confirmDeleteAll} className="dash-btn" style={{ background: '#ef4444', color: 'white', borderColor: '#ef4444' }}>
                 Delete All Quizzes
               </button>
             </div>

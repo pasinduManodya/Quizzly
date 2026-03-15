@@ -6,6 +6,7 @@ import Stopwatch from '../components/Stopwatch';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { generateQuizPDF } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
+import '../styles/quiz.css';
 
 interface Question {
   _id: string;
@@ -284,21 +285,24 @@ const Quiz: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="quiz-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', border: '3px solid #4361ee', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+          <p style={{ fontSize: '1rem', color: '#4a4a6a', fontFamily: 'Outfit, sans-serif' }}>Loading quiz...</p>
+        </div>
       </div>
     );
   }
 
   if (error && !document) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+      <div className="quiz-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.75rem', fontWeight: 700, color: '#12122a', marginBottom: '12px' }}>Error Loading Quiz</h2>
+          <p style={{ fontSize: '1rem', color: '#4a4a6a', marginBottom: '24px' }}>{error}</p>
           <button
             onClick={() => navigate('/dashboard')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+            className="dash-btn dash-btn-primary"
           >
             Back to Dashboard
           </button>
@@ -351,167 +355,164 @@ const Quiz: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="quiz-page">
       {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-3 sm:py-4 lg:py-6 gap-3 sm:gap-4">
-            {/* Title Section */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">{document.title}</h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Answered {answeredCount} of {document.questions.length} questions
-              </p>
+      <header className="quiz-header">
+        <div className="quiz-header-inner">
+          {/* Title Section */}
+          <div className="quiz-title-section">
+            <h1 className="quiz-title">{document.title}</h1>
+            <p className="quiz-subtitle">
+              Answered {answeredCount} of {document.questions.length} questions
+            </p>
+          </div>
+          
+          {/* Timer and Button Section */}
+          <div className="quiz-header-actions">
+            {/* Timer */}
+            <div className="quiz-timer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <Stopwatch onTimeUpdate={setQuizDuration} />
             </div>
             
-            {/* Timer and Button Section - Side by side on all screens */}
-            <div className="flex items-center justify-center sm:justify-end gap-2 sm:gap-3 flex-shrink-0">
-              {/* Timer */}
-              <Stopwatch 
-                onTimeUpdate={setQuizDuration}
-              />
-              
-              {/* Back Button */}
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center justify-center space-x-1.5 sm:space-x-2 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm whitespace-nowrap"
-              >
-                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="hidden sm:inline">Back to Dashboard</span>
-                <span className="sm:hidden">Back</span>
-              </button>
-            </div>
+            {/* Back Button */}
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="dash-btn"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Back to Dashboard
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="quiz-main">
         {/* Progress Bar */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className="card">
-            <div className="mb-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Progress</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-            </div>
+        <div className="quiz-progress-card">
+          <div className="progress-label">
+            <span className="progress-text">Quiz Progress</span>
+            <span className="progress-percent">{Math.round(progress)}%</span>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{ width: `${progress}%` }}></div>
           </div>
         </div>
 
         {/* All Questions */}
-        <div className="space-y-6">
+        <div>
           {document.questions.map((question, questionIndex) => (
-            <div key={question._id} className="card">
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Question {questionIndex + 1}
-                  </h2>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      title={favorited[questionIndex] ? 'Unfavorite' : 'Favorite'}
-                      onClick={async () => {
-                        if (favoritePending[questionIndex]) return;
-                        try {
-                          setFavoritePending(prev => ({ ...prev, [questionIndex]: true }));
-                          setFavoriteError(prev => ({ ...prev, [questionIndex]: undefined }));
-                          const res = await favoritesAPI.toggle({
-                            question: question.question,
-                            correctAnswer: question.correctAnswer,
-                            explanation: question.explanation,
-                            type: question.type,
-                            options: question.options || [],
-                            documentId: document._id,
-                            documentTitle: document.title
-                          });
-                          setFavorited(prev => ({ ...prev, [questionIndex]: res.data.favorited }));
-                        } catch (e: any) {
-                          const msg = e?.response?.data?.message || 'Failed to update favorite';
-                          setFavoriteError(prev => ({ ...prev, [questionIndex]: msg }));
-                        } finally {
-                          setFavoritePending(prev => ({ ...prev, [questionIndex]: false }));
-                        }
-                      }}
-                      className={`text-2xl leading-none ${favorited[questionIndex] ? 'text-yellow-500' : 'text-gray-300 hover:text-gray-400'} ${favoritePending[questionIndex] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {favorited[questionIndex] ? '★' : '☆'}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (regeneratingQuestion[questionIndex]) return;
-                        
-                        try {
-                          setRegeneratingQuestion(prev => ({ ...prev, [questionIndex]: true }));
-                          // Use current question type as a hint for regeneration
-                          const typeHint = question.type === 'mcq' ? 'mcq' : 'essay';
-                          const res = await documentsAPI.regenerateOne(document._id, questionIndex, { type: typeHint });
-                          const newQuestion = res.data.question;
-                          // Replace in local state without refetch
-                          setDocument(prev => prev ? ({ ...prev, questions: prev.questions.map((q, i) => i === questionIndex ? newQuestion : q) }) : prev);
-                          // Reset the answer for this index
-                          setAnswers(prev => prev.map((a, i) => i === questionIndex ? '' : a));
-                          setAnsweredQuestions(prev => {
-                            const next = new Set(Array.from(prev));
-                            next.delete(questionIndex);
-                            return next;
-                          });
-                        } catch (e: any) {
-                          setError(e?.response?.data?.message || 'Failed to regenerate question');
-                        } finally {
-                          setRegeneratingQuestion(prev => ({ ...prev, [questionIndex]: false }));
-                        }
-                      }}
-                      disabled={regeneratingQuestion[questionIndex]}
-                      className="text-sm px-3 py-1 rounded-md bg-gray-100 hover:bg-gray-200 disabled:bg-gray-300 disabled:cursor-not-allowed text-gray-800 flex items-center space-x-2"
-                      title="Regenerate this question"
-                    >
-                      {regeneratingQuestion[questionIndex] ? (
-                        <>
-                          <LoadingSpinner size="sm" color="gray" />
-                          <span>Regenerating...</span>
-                        </>
-                      ) : (
-                        'Regenerate'
-                      )}
-                    </button>
-                    {answeredQuestions.has(questionIndex) && (
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
-                        Answered
-                      </span>
+            <div key={question._id} className="question-card" style={{ animationDelay: `${questionIndex * 0.05}s` }}>
+              <div className="question-header">
+                <h2 className="question-number">
+                  Question {questionIndex + 1}
+                </h2>
+                <div className="question-actions">
+                  <button
+                    title={favorited[questionIndex] ? 'Unfavorite' : 'Favorite'}
+                    onClick={async () => {
+                      if (favoritePending[questionIndex]) return;
+                      try {
+                        setFavoritePending(prev => ({ ...prev, [questionIndex]: true }));
+                        setFavoriteError(prev => ({ ...prev, [questionIndex]: undefined }));
+                        const res = await favoritesAPI.toggle({
+                          question: question.question,
+                          correctAnswer: question.correctAnswer,
+                          explanation: question.explanation,
+                          type: question.type,
+                          options: question.options || [],
+                          documentId: document._id,
+                          documentTitle: document.title
+                        });
+                        setFavorited(prev => ({ ...prev, [questionIndex]: res.data.favorited }));
+                      } catch (e: any) {
+                        const msg = e?.response?.data?.message || 'Failed to update favorite';
+                        setFavoriteError(prev => ({ ...prev, [questionIndex]: msg }));
+                      } finally {
+                        setFavoritePending(prev => ({ ...prev, [questionIndex]: false }));
+                      }
+                    }}
+                    className={`favorite-btn ${favorited[questionIndex] ? 'active' : 'inactive'} ${favoritePending[questionIndex] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={favoritePending[questionIndex]}
+                  >
+                    {favorited[questionIndex] ? '★' : '☆'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (regeneratingQuestion[questionIndex]) return;
+                      
+                      try {
+                        setRegeneratingQuestion(prev => ({ ...prev, [questionIndex]: true }));
+                        const typeHint = question.type === 'mcq' ? 'mcq' : 'essay';
+                        const res = await documentsAPI.regenerateOne(document._id, questionIndex, { type: typeHint });
+                        const newQuestion = res.data.question;
+                        setDocument(prev => prev ? ({ ...prev, questions: prev.questions.map((q, i) => i === questionIndex ? newQuestion : q) }) : prev);
+                        setAnswers(prev => prev.map((a, i) => i === questionIndex ? '' : a));
+                        setAnsweredQuestions(prev => {
+                          const next = new Set(Array.from(prev));
+                          next.delete(questionIndex);
+                          return next;
+                        });
+                      } catch (e: any) {
+                        setError(e?.response?.data?.message || 'Failed to regenerate question');
+                      } finally {
+                        setRegeneratingQuestion(prev => ({ ...prev, [questionIndex]: false }));
+                      }
+                    }}
+                    disabled={regeneratingQuestion[questionIndex]}
+                    className="regenerate-btn"
+                    title="Regenerate this question"
+                  >
+                    {regeneratingQuestion[questionIndex] ? (
+                      <>
+                        <LoadingSpinner size="sm" color="gray" />
+                        <span>Regenerating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 4 23 10 17 10"/>
+                          <polyline points="1 20 1 14 7 14"/>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        <span>Regenerate</span>
+                      </>
                     )}
-                  </div>
+                  </button>
+                  {answeredQuestions.has(questionIndex) && (
+                    <span className="answered-badge">Answered</span>
+                  )}
                 </div>
-                {favoriteError[questionIndex] && (
-                  <div className="mt-2 text-xs text-red-600">{favoriteError[questionIndex]}</div>
-                )}
+              </div>
+              {favoriteError[questionIndex] && (
+                <div className="error-message" style={{ marginBottom: '16px' }}>{favoriteError[questionIndex]}</div>
+              )}
+              <div className="question-text">
                 {formatQuestionText(question.question)}
               </div>
 
               {/* Answer Options */}
-              <div className="space-y-4 mb-6">
+              <div className="question-options">
                 {question.type === 'mcq' && question.options ? (
                   question.options.map((option, optionIndex) => {
-                    const optionLabel = String.fromCharCode(65 + optionIndex); // A, B, C, D
+                    const optionLabel = String.fromCharCode(65 + optionIndex);
                     return (
-                      <label key={optionIndex} className="flex items-center">
+                      <label key={optionIndex} className="option-label">
                         <input
                           type="radio"
                           name={`question-${questionIndex}`}
                           value={option}
                           checked={answers[questionIndex] === option}
                           onChange={(e) => handleAnswerChange(questionIndex, e.target.value)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                         />
-                        <span className="ml-3 text-gray-700">
-                          <span className="font-semibold text-gray-900">{optionLabel}.</span> {option}
+                        <span className="option-text">
+                          <span className="option-letter">{optionLabel}.</span> {option}
                         </span>
                       </label>
                     );
@@ -522,11 +523,11 @@ const Quiz: React.FC = () => {
                       value={answers[questionIndex] || ''}
                       onChange={(e) => handleAnswerChange(questionIndex, e.target.value)}
                       placeholder="Type your answer here..."
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-primary focus:border-primary placeholder-gray-400"
+                      className="essay-textarea"
                       rows={6}
                     />
                     {answers[questionIndex] && (
-                      <div className="mt-3">
+                      <div>
                         <button
                           onClick={async () => {
                             if (essayEvalLoading[questionIndex]) return;
@@ -534,7 +535,6 @@ const Quiz: React.FC = () => {
                               setEssayEvalError(prev => ({ ...prev, [questionIndex]: undefined }));
                               setEssayEvalLoading(prev => ({ ...prev, [questionIndex]: true }));
                               const res = await quizAPI.gradeEssay(question.correctAnswer, answers[questionIndex]);
-                              // Use the new grading structure
                               setEssayEval(prev => ({ ...prev, [questionIndex]: res.data }));
                             } catch (e: any) {
                               const msg = e?.response?.data?.message || 'Failed to grade essay';
@@ -544,12 +544,12 @@ const Quiz: React.FC = () => {
                             }
                           }}
                           disabled={!!essayEvalLoading[questionIndex]}
-                          className="btn-accent disabled:bg-purple-300 text-white px-4 py-2 rounded-md text-sm font-medium"
+                          className="evaluate-btn"
                         >
                           {essayEvalLoading[questionIndex] ? 'Evaluating...' : 'Evaluate Answer'}
                         </button>
                         {essayEvalError[questionIndex] && (
-                          <div className="mt-2 text-sm text-red-600">{essayEvalError[questionIndex]}</div>
+                          <div className="error-message" style={{ marginTop: '12px' }}>{essayEvalError[questionIndex]}</div>
                         )}
                       </div>
                     )}
@@ -559,37 +559,54 @@ const Quiz: React.FC = () => {
 
               {/* Answer Status and Immediate Correctness (MCQ only) */}
               {answers[questionIndex] && question.type === 'mcq' && (
-                <div className="border-t pt-4">
+                <div className="answer-status">
                   {(() => {
                     const userAnswer = (answers[questionIndex] || '').trim();
                     const correctAnswer = (question.correctAnswer || '').trim();
                     const isCorrect = question.type === 'mcq' ? isAnswerCorrect(question, userAnswer) : false;
                     return (
                       <>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <span className={`text-sm font-semibold px-4 py-2 rounded-lg ${
-                              isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {isCorrect ? '✓ Correct' : '✗ Incorrect'}
-                            </span>
-                          </div>
+                        <div className="status-header">
+                          <span className={`status-badge ${isCorrect ? 'correct' : 'incorrect'}`}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              {isCorrect ? (
+                                <polyline points="20 6 9 17 4 12"/>
+                              ) : (
+                                <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
+                              )}
+                            </svg>
+                            {isCorrect ? 'Correct' : 'Incorrect'}
+                          </span>
                           <button
                             onClick={() => handleViewExplanation(questionIndex)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                            className="explanation-btn"
                           >
                             View Explanation
                           </button>
                         </div>
                         {!isCorrect && (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-700">Correct Answer:</span>
-                            <span className="text-sm bg-green-50 text-green-800 px-3 py-1 rounded">
+                          <div className="correct-answer-display">
+                            <span className="correct-answer-label">Correct Answer:</span>
+                            <span className="correct-answer-value">
                               {(() => {
-                                // If correctAnswer is a letter, show the corresponding option text for clarity
                                 if (question.type === 'mcq' && question.options) {
+                                  // Find the option index
                                   const mapped = mapLetterToOption(correctAnswer, question.options);
-                                  return mapped || correctAnswer;
+                                  const answerText = mapped || correctAnswer;
+                                  
+                                  // Find which option letter this corresponds to
+                                  let optionLetter = '';
+                                  if (question.options) {
+                                    const index = question.options.findIndex(opt => 
+                                      normalizeAnswer(opt) === normalizeAnswer(answerText) ||
+                                      normalizeAnswer(opt) === normalizeAnswer(correctAnswer)
+                                    );
+                                    if (index !== -1) {
+                                      optionLetter = String.fromCharCode(65 + index) + '. ';
+                                    }
+                                  }
+                                  
+                                  return optionLetter + answerText;
                                 }
                                 return correctAnswer;
                               })()}
@@ -722,90 +739,107 @@ const Quiz: React.FC = () => {
 
         {/* Submit Button - Show immediately after quiz is loaded */}
         {document && (
-          <div className="px-4 py-6 sm:px-0">
-            <div className="card">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Quiz Actions 🎯
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  You have answered {answers.filter(answer => answer && answer.trim() !== '').length} of {document.questions.length} questions. 
-                  You can download your answers as PDF or submit to view results.
-                </p>
-                
-                {generateMoreError && (
-                  <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    {generateMoreError}
-                  </div>
-                )}
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    onClick={handleDownloadPDF}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-                  >
-                    <span>📄</span>
-                    <span>Download PDF</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        setGeneratingMore(true);
-                        setGenerateMoreError('');
-                        const questionType = document.questions[0]?.type === 'mcq' ? 'mcq' : 'essay';
-                        const res = await documentsAPI.generateMore(document._id, {
-                          type: questionType,
-                          numQuestions: 5
-                        });
-                        // Add new questions to document
-                        setDocument(prev => prev ? {
-                          ...prev,
-                          questions: [...prev.questions, ...res.data.newQuestions]
-                        } : prev);
-                        // Extend answers array for new questions
-                        setAnswers(prev => [...prev, ...new Array(res.data.newQuestions.length).fill('')]);
-                        // Show success message
-                        setGenerateMoreError(`✅ Generated ${res.data.newQuestionsCount} new questions!`);
-                        setTimeout(() => setGenerateMoreError(''), 4000);
-                      } catch (e: any) {
-                        const msg = e?.response?.data?.message || 'Failed to generate more questions';
-                        setGenerateMoreError(msg);
-                      } finally {
-                        setGeneratingMore(false);
-                      }
-                    }}
-                    disabled={generatingMore}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-400 disabled:to-pink-400 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none flex items-center justify-center space-x-2"
-                  >
-                    <span>✨</span>
-                    <span>{generatingMore ? 'Generating...' : 'Generate More Questions'}</span>
-                  </button>
-                  <button
-                    onClick={handleSubmitQuiz}
-                    disabled={loading}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors duration-200"
-                  >
-                    {loading ? 'Submitting...' : 
-                      document && document.questions.every(q => q.type === 'mcq') 
-                        ? 'Submit Quiz & View Results' 
-                        : 'Submit Quiz'}
-                  </button>
-                </div>
+          <div className="quiz-actions-card">
+            <h3 className="actions-title">Quiz Actions</h3>
+            <p className="actions-subtitle">
+              You have answered {answers.filter(answer => answer && answer.trim() !== '').length} of {document.questions.length} questions. 
+              Download your answers as PDF or submit to view results.
+            </p>
+            
+            {generateMoreError && (
+              <div className="error-message" style={{ marginBottom: '24px' }}>
+                {generateMoreError}
               </div>
+            )}
+            
+            <div className="actions-buttons">
+              <button
+                onClick={handleDownloadPDF}
+                className="action-btn action-btn-primary"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download PDF
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    setGeneratingMore(true);
+                    setGenerateMoreError('');
+                    const questionType = document.questions[0]?.type === 'mcq' ? 'mcq' : 'essay';
+                    const res = await documentsAPI.generateMore(document._id, {
+                      type: questionType,
+                      numQuestions: 5
+                    });
+                    setDocument(prev => prev ? {
+                      ...prev,
+                      questions: [...prev.questions, ...res.data.newQuestions]
+                    } : prev);
+                    setAnswers(prev => [...prev, ...new Array(res.data.newQuestions.length).fill('')]);
+                    setGenerateMoreError(`Generated ${res.data.newQuestionsCount} new questions successfully!`);
+                    setTimeout(() => setGenerateMoreError(''), 4000);
+                  } catch (e: any) {
+                    const msg = e?.response?.data?.message || 'Failed to generate more questions';
+                    setGenerateMoreError(msg);
+                  } finally {
+                    setGeneratingMore(false);
+                  }
+                }}
+                disabled={generatingMore}
+                className="action-btn action-btn-secondary"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                {generatingMore ? 'Generating...' : 'Generate More Questions'}
+              </button>
+              <button
+                onClick={handleSubmitQuiz}
+                disabled={loading}
+                className="action-btn action-btn-success"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {loading ? 'Submitting...' : 'Submit Quiz'}
+              </button>
             </div>
           </div>
         )}
 
         {/* Error Message */}
         {error && (
-          <div className="px-4 py-6 sm:px-0">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
+          <div className="error-message">
+            {error}
           </div>
         )}
-
       </main>
+
+      {/* Professional Footer */}
+      <footer className="quiz-footer">
+        <div className="footer-inner">
+          <div className="footer-stats">
+            <div className="footer-stat">
+              <div className="footer-stat-value">{document.questions.length}</div>
+              <div className="footer-stat-label">Total Questions</div>
+            </div>
+            <div className="footer-stat">
+              <div className="footer-stat-value">{answeredCount}</div>
+              <div className="footer-stat-label">Answered</div>
+            </div>
+            <div className="footer-stat">
+              <div className="footer-stat-value">{Math.round(progress)}%</div>
+              <div className="footer-stat-label">Progress</div>
+            </div>
+          </div>
+          <div className="footer-divider"></div>
+          <p className="footer-text">Quizzly - Intelligent Learning Platform</p>
+        </div>
+      </footer>
 
       {/* Explanation Modal */}
       {document && selectedQuestionIndex !== null && (
@@ -826,67 +860,49 @@ const Quiz: React.FC = () => {
 
       {/* Results Popup */}
       {showResultsPopup && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
-          style={{ zIndex: 9999 }}
-        >
-          <div className="bg-white rounded-lg p-12 max-w-2xl w-full mx-4 shadow-2xl border-2 border-blue-500">
-            <h2 className="text-4xl font-bold text-center mb-8 text-gray-800">
-              🎯 Quiz Results
-            </h2>
+        <div className="results-modal-overlay">
+          <div className="results-modal">
+            <h2 className="results-title">Quiz Results</h2>
             
-            <div className="grid grid-cols-2 gap-8 mb-8">
-              {/* Left Column - Numbers */}
-              <div className="space-y-6">
-                <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">{total}</div>
-                    <div className="text-lg font-semibold text-blue-700">Total Questions</div>
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 p-6 rounded-lg border-2 border-green-200">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600 mb-2">{correct}</div>
-                    <div className="text-lg font-semibold text-green-700">Correct Answers</div>
-                  </div>
-                </div>
-                
-                <div className="bg-red-50 p-6 rounded-lg border-2 border-red-200">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-red-600 mb-2">{incorrect}</div>
-                    <div className="text-lg font-semibold text-red-700">Incorrect Answers</div>
-                  </div>
-                </div>
+            <div className="results-grid">
+              <div className="result-card total">
+                <div className="result-value total">{total}</div>
+                <div className="result-label">Total Questions</div>
               </div>
               
-              {/* Right Column - Percentage */}
-              <div className="flex items-center justify-center">
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-8 rounded-full border-4 border-purple-200">
-                  <div className="text-center">
-                    <div className="text-6xl font-bold text-purple-600 mb-4">
-                      {total > 0 ? Math.round((correct / total) * 100) : 0}%
-                    </div>
-                    <div className="text-xl font-semibold text-purple-700">Accuracy Rate</div>
-                    <div className="text-sm text-gray-600 mt-2">
-                      {correct} out of {total} questions
-                    </div>
-                  </div>
+              <div className="result-card correct">
+                <div className="result-value correct">{correct}</div>
+                <div className="result-label">Correct Answers</div>
+              </div>
+              
+              <div className="result-card incorrect">
+                <div className="result-value incorrect">{incorrect}</div>
+                <div className="result-label">Incorrect Answers</div>
+              </div>
+              
+              <div className="result-card accuracy">
+                <div className="result-value accuracy">
+                  {total > 0 ? Math.round((correct / total) * 100) : 0}%
                 </div>
+                <div className="result-label">Accuracy Rate</div>
               </div>
             </div>
             
-            <div className="flex justify-center space-x-4">
+            <div className="results-actions">
               <button
                 onClick={handleDownloadPDF}
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 py-3 rounded-lg transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
+                className="action-btn action-btn-success"
               >
-                <span>📄</span>
-                <span>Download PDF</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download PDF
               </button>
               <button
                 onClick={() => setShowResultsPopup(false)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg transition-colors font-semibold text-lg"
+                className="action-btn action-btn-primary"
               >
                 Close Results
               </button>
@@ -895,25 +911,24 @@ const Quiz: React.FC = () => {
         </div>
       )}
 
-      {/* Save Success Notification - Above Everything */}
+      {/* Save Success Notification */}
       {showSaveNotification && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] animate-bounce">
-          <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-4 rounded-xl shadow-2xl flex items-center space-x-4 max-w-md border-2 border-green-300">
-            <div className="flex-shrink-0">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-lg">📄 Paper Saved!</p>
-              <p className="text-sm opacity-95">Your quiz has been saved to revision history</p>
+        <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 9999, animation: 'fadeUp 0.3s ease both' }}>
+          <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', padding: '16px 24px', borderRadius: '12px', boxShadow: '0 12px 40px rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: '16px', maxWidth: '400px' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '2px' }}>Quiz Saved!</p>
+              <p style={{ fontSize: '0.875rem', opacity: 0.95 }}>Your quiz has been saved to revision history</p>
             </div>
             <button
               onClick={() => setShowSaveNotification(false)}
-              className="flex-shrink-0 ml-2 text-white hover:text-gray-200 transition-colors"
+              style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
           </div>

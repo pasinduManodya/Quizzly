@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ProgressBar from './ProgressBar';
+import '../styles/summaryModal.css';
 
 interface SummaryModalProps {
   open: boolean;
@@ -22,10 +23,20 @@ const parseFormattedText = (text: string) => {
       return;
     }
 
+    // Handle headers (####)
+    if (line.startsWith('#### ')) {
+      elements.push(
+        <h4 key={`h4-${lineIndex}`}>
+          {line.replace('#### ', '')}
+        </h4>
+      );
+      return;
+    }
+
     // Handle headers (###)
     if (line.startsWith('### ')) {
       elements.push(
-        <h3 key={`h3-${lineIndex}`} className="text-lg font-bold text-blue-800 mt-4 mb-2 border-l-4 border-blue-500 pl-3">
+        <h3 key={`h3-${lineIndex}`}>
           {line.replace('### ', '')}
         </h3>
       );
@@ -35,7 +46,7 @@ const parseFormattedText = (text: string) => {
     // Handle blockquotes (>)
     if (line.startsWith('> ')) {
       elements.push(
-        <blockquote key={`quote-${lineIndex}`} className="bg-blue-50 border-l-4 border-blue-400 p-3 my-2 italic text-blue-800">
+        <blockquote key={`quote-${lineIndex}`}>
           {line.replace('> ', '')}
         </blockquote>
       );
@@ -45,9 +56,9 @@ const parseFormattedText = (text: string) => {
     // Handle bullet points (-)
     if (line.startsWith('- ')) {
       elements.push(
-        <div key={`bullet-${lineIndex}`} className="flex items-start mb-1 ml-4">
-          <span className="text-blue-600 font-bold mr-2">•</span>
-          <span className="text-gray-800">{parseInlineFormatting(line.replace('- ', ''))}</span>
+        <div key={`bullet-${lineIndex}`} className="bullet-item">
+          <span className="bullet-dot">•</span>
+          <span>{parseInlineFormatting(line.replace('- ', ''))}</span>
         </div>
       );
       return;
@@ -56,9 +67,9 @@ const parseFormattedText = (text: string) => {
     // Handle numbered lists (1.)
     if (/^\d+\.\s/.test(line)) {
       elements.push(
-        <div key={`numbered-${lineIndex}`} className="flex items-start mb-1 ml-4">
-          <span className="text-blue-600 font-bold mr-2">{line.match(/^\d+/)?.[0]}.</span>
-          <span className="text-gray-800">{parseInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
+        <div key={`numbered-${lineIndex}`} className="bullet-item">
+          <span className="bullet-dot">{line.match(/^\d+/)?.[0]}.</span>
+          <span>{parseInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
         </div>
       );
       return;
@@ -66,7 +77,7 @@ const parseFormattedText = (text: string) => {
 
     // Regular paragraphs
     elements.push(
-      <p key={`p-${lineIndex}`} className="text-gray-800 mb-2 leading-relaxed">
+      <p key={`p-${lineIndex}`}>
         {parseInlineFormatting(line)}
       </p>
     );
@@ -87,7 +98,7 @@ const parseInlineFormatting = (text: string): (string | JSX.Element)[] => {
     if (index % 2 === 1) {
       // This is a code block
       elements.push(
-        <code key={`code-${key++}`} className="bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono">
+        <code key={`code-${key++}`}>
           {part}
         </code>
       );
@@ -98,7 +109,7 @@ const parseInlineFormatting = (text: string): (string | JSX.Element)[] => {
         if (boldIndex % 2 === 1) {
           // This is bold text
           elements.push(
-            <strong key={`bold-${key++}`} className="font-bold text-gray-900">
+            <strong key={`bold-${key++}`}>
               {boldPart}
             </strong>
           );
@@ -109,7 +120,7 @@ const parseInlineFormatting = (text: string): (string | JSX.Element)[] => {
             if (italicIndex % 2 === 1) {
               // This is italic text
               elements.push(
-                <em key={`italic-${key++}`} className="italic text-gray-700">
+                <em key={`italic-${key++}`}>
                   {italicPart}
                 </em>
               );
@@ -144,61 +155,51 @@ const LengthSelectionModal: React.FC<{
   console.log('🔍 LengthSelectionModal rendering modal');
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-100">
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold">Choose Summary Length</h3>
-            <button 
-              onClick={onClose} 
-              className="text-white hover:text-gray-200 text-2xl leading-none transition-colors"
-            >
-              ×
-            </button>
+    <div className="length-modal-overlay">
+      <div className="length-modal-container">
+        <div className="length-modal-header">
+          <div className="length-modal-header-content">
+            <h3 className="length-modal-title">Choose Summary Length</h3>
+            <button onClick={onClose} className="length-modal-close">×</button>
           </div>
         </div>
-        <div className="p-6">
-          <p className="text-gray-700 mb-6">How short would you like the summary to be?</p>
-          <div className="space-y-3">
+        <div className="length-modal-body">
+          <p className="length-modal-description">How short would you like the summary to be?</p>
+          <div className="length-options">
             <button
               onClick={() => {
                 console.log('🔄 Short length selected');
                 onSelectLength('short');
               }}
-              className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+              className="length-option"
             >
-              <div className="font-semibold text-gray-900">Short</div>
-              <div className="text-sm text-gray-600">About 25% of original length</div>
+              <div className="length-option-title">Short</div>
+              <div className="length-option-desc">About 25% of original length</div>
             </button>
             <button
               onClick={() => {
                 console.log('🔄 Medium length selected');
                 onSelectLength('medium');
               }}
-              className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+              className="length-option"
             >
-              <div className="font-semibold text-gray-900">Medium</div>
-              <div className="text-sm text-gray-600">About 50% of original length</div>
+              <div className="length-option-title">Medium</div>
+              <div className="length-option-desc">About 50% of original length</div>
             </button>
             <button
               onClick={() => {
                 console.log('🔄 Long length selected');
                 onSelectLength('long');
               }}
-              className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+              className="length-option"
             >
-              <div className="font-semibold text-gray-900">Long</div>
-              <div className="text-sm text-gray-600">About 75% of original length</div>
+              <div className="length-option-title">Long</div>
+              <div className="length-option-desc">About 75% of original length</div>
             </button>
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
-          <button 
-            onClick={onClose} 
-            className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="length-modal-footer">
+          <button onClick={onClose} className="length-cancel-btn">Cancel</button>
         </div>
       </div>
     </div>
@@ -219,10 +220,20 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
   const [isGeneratingShorter, setIsGeneratingShorter] = useState(false);
   const [simplifiedProgress, setSimplifiedProgress] = useState(0);
   const [shorterProgress, setShorterProgress] = useState(0);
+  const [currentSummary, setCurrentSummary] = useState<string | null | undefined>(summary);
+  const [originalSummary, setOriginalSummary] = useState<string | null | undefined>(summary);
+  const [summaryType, setSummaryType] = useState<'original' | 'simplified' | 'shorter'>('original');
   const simplifiedAbortControllerRef = React.useRef<AbortController | null>(null);
   const shorterAbortControllerRef = React.useRef<AbortController | null>(null);
   const simplifiedProgressIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const shorterProgressIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Sync currentSummary with summary prop when it changes
+  useEffect(() => {
+    setCurrentSummary(summary);
+    setOriginalSummary(summary);
+    setSummaryType('original');
+  }, [summary]);
 
   const handleCancelSimplified = () => {
     console.log('🛑 Cancel Simplified Summary clicked');
@@ -467,6 +478,11 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
       return;
     }
     
+    // Store original summary if not already stored
+    if (summaryType === 'original') {
+      setOriginalSummary(currentSummary);
+    }
+    
     setIsGeneratingSimplified(true);
     setSimplifiedProgress(0);
     
@@ -510,7 +526,9 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         
         // Small delay to show 100% completion
         setTimeout(() => {
-          onSimplifiedSummary(data.summary);
+          setCurrentSummary(data.summary);
+          setSummaryType('simplified');
+          if (onSimplifiedSummary) onSimplifiedSummary(data.summary);
           setIsGeneratingSimplified(false);
           setSimplifiedProgress(0);
           simplifiedAbortControllerRef.current = null;
@@ -590,7 +608,9 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
         
         // Small delay to show 100% completion
         setTimeout(() => {
-          onShorterSummary(data.summary);
+          setCurrentSummary(data.summary);
+          setSummaryType('shorter');
+          if (onShorterSummary) onShorterSummary(data.summary);
           setIsGeneratingShorter(false);
           setShorterProgress(0);
           shorterAbortControllerRef.current = null;
@@ -622,132 +642,136 @@ const SummaryModal: React.FC<SummaryModalProps> = ({
   
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40">
-        <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]">
-          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg sm:text-xl font-semibold truncate pr-2 flex-1">{title}</h3>
-              <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
-                <button 
-                  onClick={handlePrint}
-                  className="flex items-center space-x-1 sm:space-x-2 bg-white/20 hover:bg-white/30 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200"
-                  title="Print or Download as PDF"
-                >
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  <span className="hidden sm:inline">Print</span>
-                </button>
-                <button 
-                  onClick={onClose} 
-                  className="text-white hover:text-gray-200 text-2xl sm:text-3xl leading-none transition-colors w-8 h-8 flex items-center justify-center"
-                >
-                  ×
-                </button>
-              </div>
+      <div className="summary-modal-overlay" onClick={onClose} />
+      <div className="summary-modal-container">
+        <div className="summary-modal-header">
+          <div className="summary-modal-header-content">
+            <h1 className="summary-modal-title">{title}</h1>
+            <div className="summary-modal-actions">
+              <button onClick={handlePrint} className="summary-modal-btn summary-modal-btn-print" title="Print or Download as PDF">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print
+              </button>
+              <button onClick={onClose} className="summary-modal-btn summary-modal-btn-close">×</button>
             </div>
-          </div>
-        <div className="overflow-y-auto p-4 sm:p-6 bg-gray-50 flex-1 min-h-0">
-          <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-            <h4 className="text-sm font-medium text-gray-600">Summary Content</h4>
-            <div className="text-xs sm:text-sm text-gray-500">
-              Word Count: {typeof summary === 'string' ? summary.split(/\s+/).filter(word => word.length > 0).length : 0} words
-            </div>
-          </div>
-          <div className="prose prose-lg max-w-none select-text">
-            {typeof summary === 'string' ? parseFormattedText(summary) : <p className="text-gray-500 italic">No summary available</p>}
           </div>
         </div>
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 bg-white flex-shrink-0">
-            {/* Mobile: Stack buttons vertically, Desktop: Horizontal layout */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
-              {/* Action Buttons Container */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1 sm:flex-initial">
-                <div className="relative w-full sm:w-auto">
-                  <button 
-                    onClick={handleSimplifiedSummary}
-                    disabled={isGeneratingSimplified || !documentId}
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium transition-colors flex items-center justify-center space-x-2 relative overflow-hidden"
-                  >
-                    {isGeneratingSimplified ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Generating...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <span>📝</span>
-                        <span className="hidden sm:inline">More Simplified Version</span>
-                        <span className="sm:hidden">Simplified</span>
-                      </>
-                    )}
-                  </button>
-                  {isGeneratingSimplified && (
-                    <div className="mt-2 pointer-events-auto">
-                      <ProgressBar 
-                        isActive={true} 
-                        progress={simplifiedProgress}
-                        variant="success" 
-                        className="w-full"
-                        showPercentage={true}
-                        animated={true}
-                        showCancelButton={true}
-                        onCancel={handleCancelSimplified}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="relative w-full sm:w-auto">
-                  <button 
-                    onClick={() => {
-                      console.log('🔄 Shorter summary button clicked');
-                      console.log('📄 Document ID:', documentId);
-                      console.log('🔧 Callback function:', !!onShorterSummary);
-                      console.log('🔧 Current showLengthModal state:', showLengthModal);
-                      console.log('🔧 Setting showLengthModal to true');
-                      setShowLengthModal(true);
-                      console.log('🔧 showLengthModal state should now be true');
-                    }}
-                    disabled={isGeneratingShorter || !documentId}
-                    className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium transition-colors flex items-center justify-center space-x-2 relative overflow-hidden"
-                  >
-                    {isGeneratingShorter ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Generating...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <span>📏</span>
-                        <span className="hidden sm:inline">More Shorter Version</span>
-                        <span className="sm:hidden">Shorter</span>
-                      </>
-                    )}
-                  </button>
-                  {isGeneratingShorter && (
-                    <div className="mt-2 pointer-events-auto">
-                      <ProgressBar 
-                        isActive={true} 
-                        progress={shorterProgress}
-                        variant="warning" 
-                        className="w-full"
-                        showPercentage={true}
-                        animated={true}
-                        showCancelButton={true}
-                        onCancel={handleCancelShorter}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* Close Button */}
+        
+        <div className="summary-modal-content">
+          <div className="summary-modal-meta">
+            <span className="summary-meta-label">
+              {summaryType === 'simplified' ? 'Simplified Summary' : summaryType === 'shorter' ? 'Shorter Summary' : 'Summary Content'}
+            </span>
+            <span className="summary-word-count">
+              {typeof currentSummary === 'string' ? currentSummary.split(/\s+/).filter(word => word.length > 0).length : 0} words
+            </span>
+          </div>
+          <div className="summary-prose">
+            {typeof currentSummary === 'string' ? parseFormattedText(currentSummary) : <p style={{ fontStyle: 'italic', color: 'var(--ink-3)' }}>No summary available</p>}
+          </div>
+        </div>
+        
+        <div className="summary-modal-footer">
+          <div className="summary-footer-content">
+            {summaryType !== 'original' && (
               <button 
-                onClick={onClose} 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-sm sm:text-base font-medium transition-colors w-full sm:w-auto"
+                onClick={() => {
+                  setCurrentSummary(originalSummary);
+                  setSummaryType('original');
+                }}
+                className="summary-back-btn"
+                title="Back to original summary"
               >
-                Close
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="19" y1="12" x2="5" y2="12"/>
+                  <polyline points="12 19 5 12 12 5"/>
+                </svg>
+                Back to Original
               </button>
+            )}
+            <div className="summary-action-buttons">
+              <div>
+                <button 
+                  onClick={handleSimplifiedSummary}
+                  disabled={isGeneratingSimplified || !documentId}
+                  className="summary-action-btn summary-action-btn-simplified"
+                >
+                  {isGeneratingSimplified ? (
+                    <>
+                      <div className="summary-spinner"></div>
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                      </svg>
+                      <span>Simplified Version</span>
+                    </>
+                  )}
+                </button>
+                {isGeneratingSimplified && (
+                  <div className="summary-progress-wrapper">
+                    <ProgressBar 
+                      isActive={true} 
+                      progress={simplifiedProgress}
+                      variant="success" 
+                      className="w-full"
+                      showPercentage={true}
+                      animated={true}
+                      showCancelButton={true}
+                      onCancel={handleCancelSimplified}
+                    />
+                  </div>
+                )}
+              </div>
+              <div>
+                <button 
+                  onClick={() => setShowLengthModal(true)}
+                  disabled={isGeneratingShorter || !documentId}
+                  className="summary-action-btn summary-action-btn-shorter"
+                >
+                  {isGeneratingShorter ? (
+                    <>
+                      <div className="summary-spinner"></div>
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="21" y1="10" x2="3" y2="10"/>
+                        <line x1="21" y1="6" x2="3" y2="6"/>
+                        <line x1="21" y1="14" x2="3" y2="14"/>
+                        <line x1="16" y1="18" x2="3" y2="18"/>
+                      </svg>
+                      <span>Shorter Version</span>
+                    </>
+                  )}
+                </button>
+                {isGeneratingShorter && (
+                  <div className="summary-progress-wrapper">
+                    <ProgressBar 
+                      isActive={true} 
+                      progress={shorterProgress}
+                      variant="warning" 
+                      className="w-full"
+                      showPercentage={true}
+                      animated={true}
+                      showCancelButton={true}
+                      onCancel={handleCancelShorter}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
+            <button onClick={onClose} className="summary-action-btn summary-action-btn-primary">
+              Close
+            </button>
           </div>
         </div>
       </div>

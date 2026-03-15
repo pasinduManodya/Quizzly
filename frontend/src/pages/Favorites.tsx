@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { favoritesAPI } from '../services/api';
 import ExplanationModal from '../components/ExplanationModal';
+import '../styles/favorites.css';
 
 interface FavoriteItem {
   _id: string;
@@ -26,6 +27,14 @@ const Favorites: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Reset selectedTopic when changing sort mode
+  const handleSortChange = (newSortBy: 'date' | 'topic') => {
+    setSortBy(newSortBy);
+    if (newSortBy === 'date') {
+      setSelectedTopic(null); // Clear selected topic when switching to date view
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -97,7 +106,7 @@ const Favorites: React.FC = () => {
     return parts.map((part, index) => {
       if (regex.test(part)) {
         return (
-          <mark key={index} className="bg-yellow-200 text-yellow-900 px-1 rounded">
+          <mark key={index} className="highlight">
             {part}
           </mark>
         );
@@ -108,87 +117,94 @@ const Favorites: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="favorites-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', border: '3px solid #4361ee', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+          <p style={{ fontSize: '1rem', color: '#4a4a6a', fontFamily: 'Outfit, sans-serif' }}>Loading favorites...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Favorites</h1>
-              <p className="text-gray-600">
-                {selectedTopic ? `Questions from: ${selectedTopic}` : 'Your starred questions'}
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              {selectedTopic && (
-                <button
-                  onClick={handleBackToTopics}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
-                >
-                  ← Back to Topics
-                </button>
-              )}
-              {!selectedTopic && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      viewMode === 'grid' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                    title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
-                  >
-                    {viewMode === 'grid' ? (
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              )}
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Sort by:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'date' | 'topic')}
-                  className="border border-gray-300 rounded-md px-3 py-1 text-sm"
-                >
-                  <option value="topic">Topic</option>
-                  <option value="date">Date Added</option>
-                </select>
-              </div>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
-              >
-                Back to Dashboard
+    <div className="favorites-page">
+      <header className="favorites-header">
+        <div className="favorites-header-inner">
+          <div className="favorites-title-section">
+            <h1>Favorites</h1>
+            <p>{selectedTopic ? `Questions from: ${selectedTopic}` : 'Your starred questions'}</p>
+          </div>
+          <div className="favorites-header-actions">
+            {selectedTopic && (
+              <button onClick={handleBackToTopics} className="dash-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"/>
+                  <polyline points="12 19 5 12 12 5"/>
+                </svg>
+                Back to Topics
               </button>
+            )}
+            {!selectedTopic && (
+              <div className="view-toggle">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                  title="Grid View"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  title="List View"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"/>
+                    <line x1="8" y1="12" x2="21" y2="12"/>
+                    <line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/>
+                    <line x1="3" y1="12" x2="3.01" y2="12"/>
+                    <line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label className="sort-label">Sort by:</label>
+              <select value={sortBy} onChange={(e) => handleSortChange(e.target.value as 'date' | 'topic')} className="sort-select">
+                <option value="topic">Topic</option>
+                <option value="date">Date Added</option>
+              </select>
             </div>
+            <button onClick={() => navigate('/dashboard')} className="dash-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Back to Dashboard
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="favorites-main">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#dc2626', padding: '14px 18px', borderRadius: '12px', marginBottom: '24px' }}>
             {error}
           </div>
         )}
 
         {favorites.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-500">No favorites yet. Star questions during a quiz to save them here.</div>
+          <div className="empty-state">
+            <svg className="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+            <p className="empty-state-text">No favorites yet. Star questions during a quiz to save them here.</p>
           </div>
         ) : (
           <>
@@ -196,78 +212,52 @@ const Favorites: React.FC = () => {
               // Topics View
               <div>
                 {/* Search Bar */}
-                <div className="mb-6">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search topics, questions, and answers..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                  </div>
+                <div className="search-bar">
+                  <input
+                    type="text"
+                    placeholder="Search topics, questions, and answers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-input"
+                  />
+                  <svg className="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </div>
 
                 {/* Search Results */}
                 {searchTerm ? (
-                  <div className="space-y-8">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
                     {/* Topics Section */}
-                    {filteredTopics.length > 0 && (
+                    {sortBy === 'topic' && filteredTopics.length > 0 && (
                       <div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                          Topics ({filteredTopics.length})
+                        <h2 className="section-header">
+                          Topics<span className="section-count">({filteredTopics.length})</span>
                         </h2>
-                        <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}`}>
-                          {filteredTopics.map((topic) => (
+                        <div className={viewMode === 'grid' ? 'topics-grid' : 'topics-list'}>
+                          {filteredTopics.map((topic, index) => (
                             <div
                               key={topic}
                               onClick={() => handleTopicSelect(topic)}
-                              className={`card cursor-pointer hover:shadow-lg transition-shadow duration-200 ${
-                                viewMode === 'list' ? 'flex items-center space-x-4' : ''
-                              }`}
+                              className={`topic-card ${viewMode === 'list' ? 'list-view' : ''}`}
+                              style={{ animationDelay: `${index * 0.05}s` }}
                             >
-                              {viewMode === 'grid' ? (
-                                // Grid View
-                                <div className="text-center">
-                                  <div className="mb-4">
-                                    <svg className="mx-auto h-12 w-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                    {highlightSearchTerm(topic, searchTerm)}
-                                  </h3>
-                                  <p className="text-sm text-gray-600 mb-4">
-                                    {groupedFavorites[topic].length} question{groupedFavorites[topic].length !== 1 ? 's' : ''}
-                                  </p>
-                                  <div className="text-blue-600 font-medium">View Questions →</div>
-                                </div>
-                              ) : (
-                                // List View
-                                <>
-                                  <div className="flex-shrink-0">
-                                    <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                      {highlightSearchTerm(topic, searchTerm)}
-                                    </h3>
-                                    <p className="text-sm text-gray-600">
-                                      {groupedFavorites[topic].length} question{groupedFavorites[topic].length !== 1 ? 's' : ''}
-                                    </p>
-                                  </div>
-                                  <div className="flex-shrink-0 text-blue-600 font-medium">
-                                    View Questions →
-                                  </div>
-                                </>
-                              )}
+                              <svg className="topic-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <h3 className="topic-title">
+                                {highlightSearchTerm(topic, searchTerm)}
+                              </h3>
+                              <p className="topic-count">
+                                {groupedFavorites[topic].length} question{groupedFavorites[topic].length !== 1 ? 's' : ''}
+                              </p>
+                              <div className="topic-link">
+                                View Questions
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <line x1="5" y1="12" x2="19" y2="12"/>
+                                  <polyline points="12 5 19 12 12 19"/>
+                                </svg>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -277,26 +267,22 @@ const Favorites: React.FC = () => {
                     {/* Questions Section */}
                     {filteredQuestions.length > 0 && (
                       <div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-2">
-                          Questions & Answers ({filteredQuestions.length})
+                        <h2 className="section-header">
+                          Questions & Answers<span className="section-count">({filteredQuestions.length})</span>
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="questions-grid">
                           {filteredQuestions.map((fav, index) => (
-                            <div key={fav._id} className="card">
-                              {/* Question Header */}
-                              <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center space-x-3">
-                                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    fav.type === 'mcq' 
-                                      ? 'bg-blue-100 text-blue-800' 
-                                      : fav.type === 'essay' || fav.type === 'structured_essay'
-                                      ? 'bg-purple-100 text-purple-800'
-                                      : 'bg-green-100 text-green-800'
+                            <div key={fav._id} className="question-card" style={{ animationDelay: `${index * 0.05}s` }}>
+                              <div className="question-header">
+                                <div className="question-badges">
+                                  <span className={`question-type-badge ${
+                                    fav.type === 'mcq' ? 'mcq' : 
+                                    fav.type === 'essay' || fav.type === 'structured_essay' ? 'essay' : 'short'
                                   }`}>
                                     {fav.type === 'mcq' ? 'Multiple Choice' : 
                                      fav.type === 'essay' || fav.type === 'structured_essay' ? 'Essay' : 'Short Answer'}
                                   </span>
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                  <span className="topic-badge" title={fav.documentTitle}>
                                     {fav.documentTitle}
                                   </span>
                                 </div>
@@ -307,64 +293,54 @@ const Favorites: React.FC = () => {
                                       setFavorites(prev => prev.filter(x => x._id !== fav._id));
                                     } catch {}
                                   }}
-                                  className="text-xl leading-none text-yellow-500 hover:text-yellow-600"
+                                  className="favorite-star"
                                   title="Remove from favorites"
                                 >
                                   ★
                                 </button>
                               </div>
 
-                              {/* Question */}
-                              <div className="mb-4">
-                                <h3 className="text-base font-semibold text-gray-900 mb-2">Question:</h3>
-                                <p className="text-gray-700 leading-relaxed">
+                              <div className="question-section">
+                                <h3 className="question-label">Question:</h3>
+                                <p className="question-text">
                                   {highlightSearchTerm(fav.question, searchTerm)}
                                 </p>
                               </div>
 
-                              {/* Answer Options (for MCQ) */}
                               {fav.type === 'mcq' && fav.options && fav.options.length > 0 && (
-                                <div className="mb-4">
-                                  <h4 className="text-sm font-semibold text-gray-800 mb-3">Answer Options:</h4>
-                                  <div className="space-y-2">
+                                <div className="question-section">
+                                  <h4 className="question-label">Answer Options:</h4>
+                                  <div className="options-list">
                                     {fav.options.map((option, optionIndex) => (
                                       <div 
                                         key={optionIndex} 
-                                        className={`text-sm p-3 rounded-lg border ${
-                                          option === fav.correctAnswer 
-                                            ? 'bg-green-50 border-green-200 text-green-800' 
-                                            : 'bg-gray-50 border-gray-200 text-gray-700'
-                                        }`}
+                                        className={`option-item ${option === fav.correctAnswer ? 'correct' : 'normal'}`}
                                       >
-                                        <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span> {highlightSearchTerm(option, searchTerm)}
-                                        {option === fav.correctAnswer && (
-                                          <span className="ml-2 text-green-600 font-semibold">✓</span>
-                                        )}
+                                        <span style={{ fontWeight: 600 }}>{String.fromCharCode(65 + optionIndex)}.</span> {highlightSearchTerm(option, searchTerm)}
+                                        {option === fav.correctAnswer && <span style={{ marginLeft: '8px' }}>✓</span>}
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                               )}
 
-                              {/* Correct Answer */}
-                              <div className="mb-4">
-                                <h4 className="text-sm font-semibold text-gray-800 mb-2">Correct Answer:</h4>
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                  <p className="text-green-800 font-medium">
+                              <div className="question-section">
+                                <h4 className="question-label">Correct Answer:</h4>
+                                <div className="correct-answer-box">
+                                  <p className="correct-answer-text">
                                     ✓ {highlightSearchTerm(fav.correctAnswer, searchTerm)}
                                   </p>
                                 </div>
                               </div>
 
-                              {/* Actions */}
-                              <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                              <div className="question-footer">
                                 <button
                                   onClick={() => handleViewExplanation(favorites.findIndex(f => f._id === fav._id))}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium"
+                                  className="dash-btn dash-btn-primary"
                                 >
                                   View Explanation
                                 </button>
-                                <span className="text-sm text-gray-500">
+                                <span className="question-date">
                                   {new Date(fav.createdAt).toLocaleDateString()}
                                 </span>
                               </div>
@@ -376,149 +352,195 @@ const Favorites: React.FC = () => {
 
                     {/* No Results */}
                     {filteredTopics.length === 0 && filteredQuestions.length === 0 && (
-                      <div className="text-center py-12">
-                        <div className="text-gray-500">No topics or questions found matching "{searchTerm}"</div>
+                      <div className="empty-state">
+                        <p className="empty-state-text">No topics or questions found matching "{searchTerm}"</p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  // Default Topics View (when no search)
-                  <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}`}>
-                    {Object.keys(groupedFavorites).map((topic) => (
+                ) : sortBy === 'topic' ? (
+                  // Default Topics View (when no search and sorted by topic)
+                  <div className={viewMode === 'grid' ? 'topics-grid' : 'topics-list'}>
+                    {Object.keys(groupedFavorites).map((topic, index) => (
                       <div
                         key={topic}
                         onClick={() => handleTopicSelect(topic)}
-                        className={`card cursor-pointer hover:shadow-lg transition-shadow duration-200 ${
-                          viewMode === 'list' ? 'flex items-center space-x-4' : ''
-                        }`}
+                        className={`topic-card ${viewMode === 'list' ? 'list-view' : ''}`}
+                        style={{ animationDelay: `${index * 0.05}s` }}
                       >
-                        {viewMode === 'grid' ? (
-                          // Grid View
-                          <div className="text-center">
-                            <div className="mb-4">
-                              <svg className="mx-auto h-12 w-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">{topic}</h3>
-                            <p className="text-sm text-gray-600 mb-4">
-                              {groupedFavorites[topic].length} question{groupedFavorites[topic].length !== 1 ? 's' : ''}
-                            </p>
-                            <div className="text-blue-600 font-medium">View Questions →</div>
-                          </div>
-                        ) : (
-                          // List View
-                          <>
-                            <div className="flex-shrink-0">
-                              <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold text-gray-900 truncate">{topic}</h3>
-                              <p className="text-sm text-gray-600">
-                                {groupedFavorites[topic].length} question{groupedFavorites[topic].length !== 1 ? 's' : ''}
-                              </p>
-                            </div>
-                            <div className="flex-shrink-0 text-blue-600 font-medium">
-                              View Questions →
-                            </div>
-                          </>
-                        )}
+                        <svg className="topic-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <h3 className="topic-title">{topic}</h3>
+                        <p className="topic-count">
+                          {groupedFavorites[topic].length} question{groupedFavorites[topic].length !== 1 ? 's' : ''}
+                        </p>
+                        <div className="topic-link">
+                          View Questions
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                          </svg>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                ) : (
+                  // Date View - Show all questions sorted by date
+                  <div>
+                    <h2 className="section-header">
+                      All Questions<span className="section-count">({sortedFavorites.length})</span>
+                    </h2>
+                    <div className="questions-grid">
+                      {sortedFavorites.map((fav, index) => (
+                        <div key={fav._id} className="question-card" style={{ animationDelay: `${index * 0.05}s` }}>
+                          <div className="question-header">
+                            <div className="question-badges">
+                              <span className={`question-type-badge ${
+                                fav.type === 'mcq' ? 'mcq' : 
+                                fav.type === 'essay' || fav.type === 'structured_essay' ? 'essay' : 'short'
+                              }`}>
+                                {fav.type === 'mcq' ? 'Multiple Choice' : 
+                                 fav.type === 'essay' || fav.type === 'structured_essay' ? 'Essay' : 'Short Answer'}
+                              </span>
+                              <span className="topic-badge" title={fav.documentTitle}>
+                                {fav.documentTitle}
+                              </span>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await favoritesAPI.remove(fav._id);
+                                  setFavorites(prev => prev.filter(x => x._id !== fav._id));
+                                } catch {}
+                              }}
+                              className="favorite-star"
+                              title="Remove from favorites"
+                            >
+                              ★
+                            </button>
+                          </div>
+
+                          <div className="question-section">
+                            <h3 className="question-label">Question:</h3>
+                            <p className="question-text">{fav.question}</p>
+                          </div>
+
+                          {fav.type === 'mcq' && fav.options && fav.options.length > 0 && (
+                            <div className="question-section">
+                              <h4 className="question-label">Answer Options:</h4>
+                              <div className="options-list">
+                                {fav.options.map((option, optionIndex) => (
+                                  <div 
+                                    key={optionIndex} 
+                                    className={`option-item ${option === fav.correctAnswer ? 'correct' : 'normal'}`}
+                                  >
+                                    <span style={{ fontWeight: 600 }}>{String.fromCharCode(65 + optionIndex)}.</span> {option}
+                                    {option === fav.correctAnswer && <span style={{ marginLeft: '8px' }}>✓</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="question-section">
+                            <h4 className="question-label">Correct Answer:</h4>
+                            <div className="correct-answer-box">
+                              <p className="correct-answer-text">
+                                ✓ {fav.correctAnswer}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="question-footer">
+                            <button
+                              onClick={() => handleViewExplanation(favorites.findIndex(f => f._id === fav._id))}
+                              className="dash-btn dash-btn-primary"
+                            >
+                              View Explanation
+                            </button>
+                            <span className="question-date">
+                              {new Date(fav.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             ) : (
               // Questions View for Selected Topic
-              <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {groupedFavorites[selectedTopic].map((fav, index) => (
-                    <div key={fav._id} className="card">
-                      {/* Question Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            fav.type === 'mcq' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : fav.type === 'essay' || fav.type === 'structured_essay'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {fav.type === 'mcq' ? 'Multiple Choice' : 
-                             fav.type === 'essay' || fav.type === 'structured_essay' ? 'Essay' : 'Short Answer'}
-                          </span>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await favoritesAPI.remove(fav._id);
-                              setFavorites(prev => prev.filter(x => x._id !== fav._id));
-                            } catch {}
-                          }}
-                          className="text-xl leading-none text-yellow-500 hover:text-yellow-600"
-                          title="Remove from favorites"
-                        >
-                          ★
-                        </button>
-                      </div>
-
-                      {/* Question */}
-                      <div className="mb-4">
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">Question:</h3>
-                        <p className="text-gray-700 leading-relaxed">{fav.question}</p>
-                      </div>
-
-                      {/* Answer Options (for MCQ) */}
-                      {fav.type === 'mcq' && fav.options && fav.options.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-800 mb-3">Answer Options:</h4>
-                          <div className="space-y-2">
-                            {fav.options.map((option, optionIndex) => (
-                              <div 
-                                key={optionIndex} 
-                                className={`text-sm p-3 rounded-lg border ${
-                                  option === fav.correctAnswer 
-                                    ? 'bg-green-50 border-green-200 text-green-800' 
-                                    : 'bg-gray-50 border-gray-200 text-gray-700'
-                                }`}
-                              >
-                                <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span> {option}
-                                {option === fav.correctAnswer && (
-                                  <span className="ml-2 text-green-600 font-semibold">✓</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Correct Answer */}
-                      <div className="mb-4">
-                        <h4 className="text-sm font-semibold text-gray-800 mb-2">Correct Answer:</h4>
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                          <p className="text-green-800 font-medium">
-                            ✓ {fav.correctAnswer}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                        <button
-                          onClick={() => handleViewExplanation(favorites.findIndex(f => f._id === fav._id))}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium"
-                        >
-                          View Explanation
-                        </button>
-                        <span className="text-sm text-gray-500">
-                          {new Date(fav.createdAt).toLocaleDateString()}
+              <div className="questions-grid">
+                {groupedFavorites[selectedTopic].map((fav, index) => (
+                  <div key={fav._id} className="question-card" style={{ animationDelay: `${index * 0.05}s` }}>
+                    <div className="question-header">
+                      <div className="question-badges">
+                        <span className={`question-type-badge ${
+                          fav.type === 'mcq' ? 'mcq' : 
+                          fav.type === 'essay' || fav.type === 'structured_essay' ? 'essay' : 'short'
+                        }`}>
+                          {fav.type === 'mcq' ? 'Multiple Choice' : 
+                           fav.type === 'essay' || fav.type === 'structured_essay' ? 'Essay' : 'Short Answer'}
                         </span>
                       </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await favoritesAPI.remove(fav._id);
+                            setFavorites(prev => prev.filter(x => x._id !== fav._id));
+                          } catch {}
+                        }}
+                        className="favorite-star"
+                        title="Remove from favorites"
+                      >
+                        ★
+                      </button>
                     </div>
-                  ))}
-                </div>
+
+                    <div className="question-section">
+                      <h3 className="question-label">Question:</h3>
+                      <p className="question-text">{fav.question}</p>
+                    </div>
+
+                    {fav.type === 'mcq' && fav.options && fav.options.length > 0 && (
+                      <div className="question-section">
+                        <h4 className="question-label">Answer Options:</h4>
+                        <div className="options-list">
+                          {fav.options.map((option, optionIndex) => (
+                            <div 
+                              key={optionIndex} 
+                              className={`option-item ${option === fav.correctAnswer ? 'correct' : 'normal'}`}
+                            >
+                              <span style={{ fontWeight: 600 }}>{String.fromCharCode(65 + optionIndex)}.</span> {option}
+                              {option === fav.correctAnswer && <span style={{ marginLeft: '8px' }}>✓</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="question-section">
+                      <h4 className="question-label">Correct Answer:</h4>
+                      <div className="correct-answer-box">
+                        <p className="correct-answer-text">
+                          ✓ {fav.correctAnswer}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="question-footer">
+                      <button
+                        onClick={() => handleViewExplanation(favorites.findIndex(f => f._id === fav._id))}
+                        className="dash-btn dash-btn-primary"
+                      >
+                        View Explanation
+                      </button>
+                      <span className="question-date">
+                        {new Date(fav.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>

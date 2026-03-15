@@ -90,8 +90,8 @@ export const documentsAPI = {
     options: { type: 'mcq'|'essay'|'structured_essay'|'mixed'; numQuestions?: number }
   ) => axios.post(`/api/documents/${documentId}/generate-more`, options),
 
-  summarize: (documentId: string, config?: { signal?: AbortSignal }) => 
-    axios.post(`/api/documents/${documentId}/summary`, {}, config),
+  summarize: (documentId: string, options?: { force?: boolean; signal?: AbortSignal }) => 
+    axios.post(`/api/documents/${documentId}/summary`, { force: options?.force || false }, { signal: options?.signal }),
   
   getAll: () => axios.get('/api/documents'),
   

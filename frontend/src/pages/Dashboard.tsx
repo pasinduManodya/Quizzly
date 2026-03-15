@@ -7,6 +7,7 @@ import Logo from '../components/Logo';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AILoading from '../components/AILoading';
 import ProgressBar from '../components/ProgressBar';
+import '../styles/dashboard.css';
 
 interface Document {
   _id: string;
@@ -89,6 +90,8 @@ const Dashboard: React.FC = () => {
   const [numQuestions, setNumQuestions] = useState<number>(10);
   const [coverAllTopics, setCoverAllTopics] = useState<boolean>(false);
   const [startingQuiz, setStartingQuiz] = useState(false);
+  const [quizGenerationProgress, setQuizGenerationProgress] = useState(0);
+  const quizProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const isInitialMount = useRef(true);
   const condensedTextPollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -586,6 +589,16 @@ const Dashboard: React.FC = () => {
     if (!setupDocId) return;
     try {
       setStartingQuiz(true);
+      setQuizGenerationProgress(0);
+      
+      // Simulate progress updates during quiz generation
+      quizProgressIntervalRef.current = setInterval(() => {
+        setQuizGenerationProgress(prev => {
+          if (prev >= 90) return prev; // Stop at 90% until API completes
+          return prev + Math.random() * 8;
+        });
+      }, 200) as NodeJS.Timeout;
+      
       // Call backend to regenerate questions with options
       try {
         await documentsAPI.regenerate(setupDocId, {
@@ -596,10 +609,29 @@ const Dashboard: React.FC = () => {
       } catch (e: any) {
         const msg = e?.response?.data?.message || 'Failed to generate quiz with selected options';
         setError(msg);
+        
+        // Clear progress interval on error
+        if (quizProgressIntervalRef.current) {
+          clearInterval(quizProgressIntervalRef.current);
+          quizProgressIntervalRef.current = null;
+        }
+        setQuizGenerationProgress(0);
         return;
       }
-      setShowSetup(false);
-      navigate(`/quiz/${setupDocId}`);
+      
+      // Complete the progress bar
+      if (quizProgressIntervalRef.current) {
+        clearInterval(quizProgressIntervalRef.current);
+        quizProgressIntervalRef.current = null;
+      }
+      setQuizGenerationProgress(100);
+      
+      // Small delay to show 100% completion
+      setTimeout(() => {
+        setShowSetup(false);
+        setQuizGenerationProgress(0);
+        navigate(`/quiz/${setupDocId}`);
+      }, 500);
     } finally {
       setStartingQuiz(false);
     }
@@ -647,336 +679,267 @@ const Dashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="dashboard-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', border: '3px solid #4361ee', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+          <p style={{ fontSize: '1rem', color: '#4a4a6a', fontFamily: 'Outfit, sans-serif' }}>Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="dashboard-page">
       {/* Header */}
-      <header className="bg-white shadow sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4 sm:py-6">
-            {/* Logo and Title Section */}
-            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-              <Logo className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg object-cover flex-shrink-0" size={40} />
-              <div className="min-w-0 flex-1">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 truncate">Quizzly</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate">
-                  <span className="hidden sm:inline">Welcome back, </span>
-                  <span className="font-medium">{user?.isGuest ? 'Guest' : user?.email?.split('@')[0] || 'User'}</span>
-                  {user?.isGuest && <span className="text-yellow-600 ml-1 sm:ml-2 text-xs">(Temp)</span>}
-                </p>
-              </div>
-            </div>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-              <button
-                onClick={() => navigate('/revision')}
-                className="btn-secondary text-sm lg:text-base"
-              >
-                Revision
-              </button>
-              <button
-                onClick={() => navigate('/favorites')}
-                className="btn-accent text-sm lg:text-base"
-              >
-                Favorites
-              </button>
-              <button
-                onClick={logout}
-                className="bg-red-600 hover:bg-red-700 text-white px-3 lg:px-4 py-2 rounded-lg shadow text-sm lg:text-base transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex-shrink-0 ml-2">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-                aria-expanded="false"
-              >
-                <span className="sr-only">Open main menu</span>
-                {!mobileMenuOpen ? (
-                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                ) : (
-                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
-              </button>
+      <header className="dashboard-header">
+        <div className="header-inner">
+          {/* Logo and Title Section */}
+          <div className="header-brand">
+            <Logo className="brand-logo" size={40} />
+            <div className="brand-info">
+              <h1 className="brand-title">Quizzly</h1>
+              <p className="brand-subtitle">
+                Welcome back, <span className="user-name">{user?.isGuest ? 'Guest' : user?.email?.split('@')[0] || 'User'}</span>
+                {user?.isGuest && <span style={{ color: '#f59e0b', marginLeft: '6px', fontSize: '0.75rem' }}>(Temp)</span>}
+              </p>
             </div>
           </div>
 
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden border-t border-gray-200 py-4 transition-all duration-200 ease-in-out">
-              <div className="flex flex-col space-y-2">
-                <button
-                  onClick={() => {
-                    navigate('/revision');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-left btn-secondary text-sm"
-                >
-                  Revision History
-                </button>
-                <button
-                  onClick={() => {
-                    navigate('/favorites');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-left btn-accent text-sm"
-                >
-                  Favorites
-                </button>
-                <button
-                  onClick={() => {
-                    logout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-left bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow text-sm mt-2"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Desktop Navigation */}
+          <div className="header-actions">
+            <button
+              onClick={() => navigate('/revision')}
+              className="dash-btn"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Revision
+            </button>
+            <button
+              onClick={() => navigate('/favorites')}
+              className="dash-btn"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+              Favorites
+            </button>
+            <button
+              onClick={logout}
+              className="dash-btn dash-btn-danger"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+              Logout
+            </button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="mobile-menu-btn"
+            aria-expanded={mobileMenuOpen}
+          >
+            <span style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>Open main menu</span>
+            {!mobileMenuOpen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div style={{ borderTop: '1px solid rgba(20,20,40,0.08)', padding: '16px 28px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button
+              onClick={() => {
+                navigate('/revision');
+                setMobileMenuOpen(false);
+              }}
+              className="dash-btn" style={{ width: '100%', justifyContent: 'flex-start' }}
+            >
+              Revision History
+            </button>
+            <button
+              onClick={() => {
+                navigate('/favorites');
+                setMobileMenuOpen(false);
+              }}
+              className="dash-btn" style={{ width: '100%', justifyContent: 'flex-start' }}
+            >
+              Favorites
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                setMobileMenuOpen(false);
+              }}
+              className="dash-btn dash-btn-danger" style={{ width: '100%', justifyContent: 'flex-start' }}
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="dashboard-main">
         {/* Upload Section */}
-        <div className="px-4 py-6 sm:px-0">
+        <div className="upload-section">
           <div 
-            className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-primary transition-colors duration-200 bg-white shadow-soft"
+            className="upload-card"
             onDragOver={handleDragOver}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="text-center">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                stroke="currentColor"
-                fill="none"
-                viewBox="0 0 48 48"
-                aria-hidden="true"
-              >
-                <path
-                  d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+            <svg className="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <h3 className="upload-title">Upload Your Document</h3>
+            <p className="upload-subtitle">Drop your PDF here or click to browse (max 10MB)</p>
+            <label htmlFor="file-upload" className="dash-btn dash-btn-primary" style={{ cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
               </svg>
-              <div className="mt-4">
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <span className="mt-2 block text-sm font-medium text-gray-900">
-                    Upload a PDF document
-                  </span>
-                  <span className="mt-1 block text-sm text-gray-500">
-                    Click to select a PDF file or drag and drop here (max 10MB)
-                  </span>
-                </label>
-                <input
-                  id="file-upload"
-                  name="file-upload"
-                  type="file"
-                  accept=".pdf"
-                  className="sr-only"
-                  onChange={handleFileInputChange}
-                  disabled={uploading}
-                />
-              </div>
-              {uploading && (
-                <div className="mt-6 space-y-3">
-                  <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-                        <span className="text-sm font-medium text-gray-700">Uploading...</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-sm font-semibold text-blue-600">{Math.round(uploadProgress)}%</span>
-                        <button
-                          onClick={handleCancelUpload}
-                          className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                          title="Cancel upload"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                    <ProgressBar 
-                      isActive={true} 
-                      progress={uploadProgress}
-                      variant="primary" 
-                      className="w-full"
-                      showPercentage={false}
-                      animated={true}
-                      showCancelButton={true}
-                      onCancel={handleCancelUpload}
-                    />
-                    <p className="mt-2 text-xs text-gray-500 truncate">{uploadFileName}</p>
-                    {uploadProgress >= 95 && uploadProgress < 100 && (
-                      <p className="mt-1 text-xs text-blue-600 animate-pulse">Processing PDF content...</p>
-                    )}
+              Choose File
+            </label>
+            <input
+              id="file-upload"
+              name="file-upload"
+              type="file"
+              accept=".pdf"
+              className="upload-input"
+              onChange={handleFileInputChange}
+              disabled={uploading}
+            />
+            {uploading && (
+              <div className="upload-progress">
+                <div className="progress-header">
+                  <div className="progress-info">
+                    <div className="progress-spinner"></div>
+                    <span className="progress-text">Uploading...</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="progress-percent">{Math.round(uploadProgress)}%</span>
+                    <button
+                      onClick={handleCancelUpload}
+                      className="dash-btn dash-btn-danger" style={{ padding: '6px 12px', fontSize: '0.8125rem' }}
+                      title="Cancel upload"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
+                <div className="progress-bar-container">
+                  <div className="progress-bar-fill" style={{ width: `${uploadProgress}%` }}></div>
+                </div>
+                <p className="progress-filename">{uploadFileName}</p>
+                {uploadProgress >= 95 && uploadProgress < 100 && (
+                  <p style={{ marginTop: '8px', fontSize: '0.8125rem', color: '#4361ee', fontWeight: 600 }}>Processing PDF content...</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="px-4 py-6 sm:px-0">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
+          <div style={{ marginBottom: '32px', padding: '16px 20px', background: '#fef2f2', border: '1px solid rgba(220, 38, 38, 0.2)', borderRadius: '12px', color: '#dc2626', fontSize: '0.9375rem' }}>
+            {error}
           </div>
         )}
 
         {/* Documents List */}
-        <div className="px-4 py-6 sm:px-0">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Documents</h2>
+        <div>
+          <div className="section-header">
+            <h2 className="section-title">Your Documents</h2>
+            <p className="section-subtitle">{documents.length} {documents.length === 1 ? 'document' : 'documents'} ready for learning</p>
+          </div>
           {documents.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No documents uploaded yet. Upload your first PDF to get started!</p>
+            <div className="empty-state">
+              <svg className="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              <h3 className="empty-title">No documents yet</h3>
+              <p className="empty-text">Upload your first PDF to start creating quizzes and summaries</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="documents-grid">
               {documents.map((doc) => (
-                <div key={doc._id} className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="px-4 py-5 sm:p-6">
-                    <h3 className="text-lg font-medium text-gray-900 truncate">
-                      {doc.title}
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {doc.questions.length} questions generated
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
-                    </p>
-                    {!doc.condensedTextReady && (
-                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-yellow-600 border-t-transparent"></div>
-                          <p className="text-xs text-yellow-800 font-medium">
-                            Processing document for optimal performance...
-                          </p>
-                        </div>
-                        <p className="text-xs text-yellow-600 mt-1">
-                          This may take a minute. Buttons will be available once ready.
-                        </p>
-                      </div>
-                    )}
-                    <div className="mt-4 flex space-x-3">
-              <button
-                onClick={() => handleStartQuiz(doc._id)}
-                disabled={!doc.condensedTextReady}
-                className={`flex-1 btn-primary text-sm font-medium ${!doc.condensedTextReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'Start Quiz'}
-              >
-                        Start Quiz
-                      </button>
-                      <div className="relative flex-1">
-                        <button
-                          onClick={async () => {
-                            if (generatingSummary[doc._id] || !doc.condensedTextReady) return;
-                            
-                            try {
-                              setGeneratingSummary(prev => ({ ...prev, [doc._id]: true }));
-                              setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
-                              
-                              // Create abort controller for this summary generation
-                              const abortController = new AbortController();
-                              summaryAbortControllersRef.current[doc._id] = abortController;
-                              
-                              // Simulate progress updates during API call
-                              const progressInterval = setInterval(() => {
-                                setSummaryProgress(prev => {
-                                  const current = prev[doc._id] || 0;
-                                  if (current >= 90) return prev; // Stop at 90% until API completes
-                                  return { ...prev, [doc._id]: current + Math.random() * 10 };
-                                });
-                              }, 200);
-                              
-                              summaryProgressIntervalsRef.current[doc._id] = progressInterval;
-                              
-                              const res = await documentsAPI.summarize(doc._id, { signal: abortController.signal });
-                              
-                              // Complete the progress bar
-                              clearInterval(progressInterval);
-                              delete summaryProgressIntervalsRef.current[doc._id];
-                              setSummaryProgress(prev => ({ ...prev, [doc._id]: 100 }));
-                              
-                              // Small delay to show 100% completion
-                              setTimeout(() => {
-                                setSelectedDocumentId(doc._id);
-                                setSummaryTitle(doc.title);
-                                setSummaryText(res.data.summary);
-                                setSummaryOpen(true);
-                                setGeneratingSummary(prev => ({ ...prev, [doc._id]: false }));
-                                setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
-                                delete summaryAbortControllersRef.current[doc._id];
-                              }, 500);
-                              
-                            } catch (e: any) {
-                              // Don't show error for aborted requests
-                              if (e.name !== 'AbortError') {
-                                alert(e?.response?.data?.message || 'Failed to generate summary');
-                              }
-                              setGeneratingSummary(prev => ({ ...prev, [doc._id]: false }));
-                              setSummaryProgress(prev => ({ ...prev, [doc._id]: 0 }));
-                              delete summaryAbortControllersRef.current[doc._id];
-                            }
-                          }}
-                          disabled={generatingSummary[doc._id] || !doc.condensedTextReady}
-                          className={`w-full btn-secondary text-sm font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden ${!doc.condensedTextReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : generatingSummary[doc._id] ? 'Generating summary...' : 'Create Summary'}
-                        >
-                          {generatingSummary[doc._id] ? (
-                            <div className="flex items-center space-x-2">
-                              <LoadingSpinner size="sm" color="blue" />
-                              <span>Generating...</span>
-                            </div>
-                          ) : (
-                            'Create Summary'
-                          )}
-                        </button>
-                        {generatingSummary[doc._id] && (
-                          <div className="mt-2 pointer-events-auto">
-                            <ProgressBar 
-                              isActive={true} 
-                              progress={summaryProgress[doc._id] || 0}
-                              variant="info" 
-                              className="w-full"
-                              showPercentage={true}
-                              animated={true}
-                              showCancelButton={true}
-                              onCancel={() => handleCancelSummary(doc._id)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteDocument(doc._id)}
-                        disabled={!doc.condensedTextReady}
-                        className={`bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg shadow text-sm font-medium ${!doc.condensedTextReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'Delete Document'}
-                      >
-                        Delete
-                      </button>
+                <div key={doc._id} className="doc-card">
+                  <div className="doc-header">
+                    <h3 className="doc-title">{doc.title}</h3>
+                    <div className="doc-meta">
+                      <span>{doc.questions.length} questions generated</span>
+                      <span>Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}</span>
                     </div>
+                  </div>
+                  {!doc.condensedTextReady && (
+                    <div className="doc-processing">
+                      <div className="processing-content">
+                        <div className="processing-spinner"></div>
+                        <p className="processing-text">Processing document...</p>
+                      </div>
+                      <p className="processing-note">This may take a minute. Features will unlock when ready.</p>
+                    </div>
+                  )}
+                  <div className="doc-actions">
+                    <button
+                      onClick={() => handleStartQuiz(doc._id)}
+                      disabled={!doc.condensedTextReady}
+                      className="doc-btn doc-btn-primary"
+                      title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'Start Quiz'}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                      </svg>
+                      Start Quiz
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!doc.condensedTextReady) return;
+                        navigate(`/summary/${doc._id}`);
+                      }}
+                      disabled={!doc.condensedTextReady}
+                      className="doc-btn doc-btn-secondary"
+                      title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'View Summary'}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                      </svg>
+                      Summary
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDocument(doc._id)}
+                      disabled={!doc.condensedTextReady}
+                      className="doc-btn doc-btn-delete"
+                      title={!doc.condensedTextReady ? 'Document is still being processed. Please wait...' : 'Delete Document'}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -984,83 +947,64 @@ const Dashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Favorites removed from Dashboard; now a dedicated page at /favorites */}
-
         {/* Start Quiz Setup Modal */}
         {showSetup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-xl w-full">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-gray-900">Quiz Setup</h3>
-                  <button
-                    onClick={() => setShowSetup(false)}
-                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3 className="modal-title">Quiz Setup</h3>
+                <button onClick={() => setShowSetup(false)} className="modal-close">×</button>
               </div>
-              <div className="px-6 py-4 space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
-                  <select
-                    value={questionType}
-                    onChange={(e) => setQuestionType(e.target.value as any)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Question Type</label>
+                  <select value={questionType} onChange={(e) => setQuestionType(e.target.value as any)} className="form-select">
                     <option value="mcq">MCQ</option>
                     <option value="essay">Essay</option>
                     <option value="structured_essay">Structured Essay</option>
                     <option value="mixed">Mixed (combination of all)</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={numQuestions}
-                      onChange={(e) => setNumQuestions(Math.max(1, Number(e.target.value)))}
-                      disabled={coverAllTopics}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Number of Questions</label>
+                    <input type="number" min={1} value={numQuestions} onChange={(e) => setNumQuestions(Math.max(1, Number(e.target.value)))} disabled={coverAllTopics} className="form-input" />
                   </div>
-                  <div className="flex items-end">
-                    <label className="inline-flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={coverAllTopics}
-                        onChange={(e) => setCoverAllTopics(e.target.checked)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Cover all topics (ignore number)</span>
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <label className="form-checkbox">
+                      <input type="checkbox" checked={coverAllTopics} onChange={(e) => setCoverAllTopics(e.target.checked)} />
+                      <span>Cover all topics</span>
                     </label>
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 border-t border-gray-200">
+              <div className="modal-footer">
                 {startingQuiz ? (
-                  <div className="flex justify-center py-8">
-                    <AILoading text="Generating your personalized quiz..." />
+                  <div style={{ width: '100%', padding: '24px 0' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <AILoading text="Generating your personalized quiz..." />
+                    </div>
+                    <div style={{ padding: '0 32px' }}>
+                      <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#4a4a6a' }}>Progress</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#4361ee' }}>{Math.round(quizGenerationProgress)}%</span>
+                      </div>
+                      <div className="progress-bar-container">
+                        <div className="progress-bar-fill" style={{ width: `${quizGenerationProgress}%` }}></div>
+                      </div>
+                      <p style={{ marginTop: '12px', fontSize: '0.8125rem', color: '#8888aa', textAlign: 'center' }}>
+                        {quizGenerationProgress < 30 && 'Analyzing document content...'}
+                        {quizGenerationProgress >= 30 && quizGenerationProgress < 60 && 'Generating questions...'}
+                        {quizGenerationProgress >= 60 && quizGenerationProgress < 90 && 'Optimizing quiz structure...'}
+                        {quizGenerationProgress >= 90 && 'Finalizing your quiz...'}
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      onClick={() => setShowSetup(false)}
-                      className="bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-md"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleConfirmStart}
-                      disabled={startingQuiz}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-5 py-2 rounded-md"
-                    >
-                      Start Quiz
-                    </button>
-                  </div>
+                  <>
+                    <button onClick={() => setShowSetup(false)} className="dash-btn">Cancel</button>
+                    <button onClick={handleConfirmStart} disabled={startingQuiz} className="dash-btn dash-btn-primary">Start Quiz</button>
+                  </>
                 )}
               </div>
             </div>
@@ -1068,28 +1012,20 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Document Limit Info */}
-        <div className="px-4 py-6 sm:px-0">
-          <div className={`border rounded-md p-4 ${user?.isGuest ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'}`}>
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className={`h-5 w-5 ${user?.isGuest ? 'text-yellow-400' : 'text-blue-400'}`} viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className={`text-sm ${user?.isGuest ? 'text-yellow-700' : 'text-blue-700'}`}>
-                  {user?.isGuest 
-                    ? `Guest session: You have uploaded ${documents.length} of ${user?.maxDocuments} PDFs. Data will be deleted when you leave.`
-                    : `You have uploaded ${documents.length} of ${user?.maxDocuments} documents.`
-                  }
-                </p>
-                {user?.isGuest && (
-                  <p className="text-xs text-yellow-600 mt-1">
-                    Create an account to save your progress permanently.
-                  </p>
-                )}
-              </div>
-            </div>
+        <div className={`info-banner ${user?.isGuest ? 'guest' : ''}`}>
+          <svg className="info-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          <div className="info-content">
+            <p className="info-text">
+              {user?.isGuest 
+                ? `Guest session: You have uploaded ${documents.length} of ${user?.maxDocuments} PDFs. Data will be deleted when you leave.`
+                : `You have uploaded ${documents.length} of ${user?.maxDocuments} documents.`
+              }
+            </p>
+            {user?.isGuest && (
+              <p className="info-subtext">Create an account to save your progress permanently.</p>
+            )}
           </div>
         </div>
       </main>
@@ -1115,35 +1051,29 @@ const Dashboard: React.FC = () => {
 
       {/* Logout Confirmation Dialog */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up">
-            <div className="flex items-center justify-center w-16 h-16 mx-auto bg-yellow-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-              Confirm Logout
-            </h3>
-            <p className="text-gray-600 text-center mb-6">
-              {user?.isGuest 
-                ? "Are you sure you want to leave? All your uploaded documents and progress will be permanently deleted."
-                : "Are you sure you want to logout and return to the home page?"
-              }
-            </p>
-            <div className="flex space-x-3">
-              <button
-                onClick={handleCancelLogout}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-6 py-3 rounded-xl transition-colors duration-200"
-              >
-                Stay
-              </button>
-              <button
-                onClick={handleConfirmLogout}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors duration-200"
-              >
-                {user?.isGuest ? "Leave & Delete" : "Logout"}
-              </button>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <div style={{ padding: '32px', textAlign: 'center' }}>
+              <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', background: 'rgba(251, 191, 36, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg style={{ width: '32px', height: '32px', color: '#f59e0b' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <h3 className="modal-title" style={{ marginBottom: '12px' }}>Confirm Logout</h3>
+              <p style={{ fontSize: '1rem', color: '#4a4a6a', lineHeight: '1.6', marginBottom: '32px' }}>
+                {user?.isGuest 
+                  ? "Are you sure you want to leave? All your uploaded documents and progress will be permanently deleted."
+                  : "Are you sure you want to logout and return to the home page?"
+                }
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={handleCancelLogout} className="dash-btn" style={{ flex: 1, padding: '14px' }}>Stay</button>
+                <button onClick={handleConfirmLogout} className="dash-btn dash-btn-danger" style={{ flex: 1, padding: '14px' }}>
+                  {user?.isGuest ? "Leave & Delete" : "Logout"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

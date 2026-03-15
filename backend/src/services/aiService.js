@@ -116,31 +116,51 @@ class AIService {
     }
   }
 
-  async callGemini(prompt) {
+  async callGemini(prompt, retryCount = 0) {
     const baseUrl = this.config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta';
     const url = `${baseUrl}/models/${this.config.model}:generateContent`;
     
     console.log('🔗 Gemini API URL:', url);
     console.log('🔑 API Key:', this.config.apiKey ? this.config.apiKey.substring(0, 10) + '...' : 'Missing');
     
-    const response = await axios.post(url, {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
-      generationConfig: {
-        temperature: this.config.temperature,
-        ...this.config.settings
+    try {
+      const response = await axios.post(url, {
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: this.config.temperature,
+          maxOutputTokens: 8192,
+          ...this.config.settings
+        }
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.config.apiKey
+        },
+        timeout: 60000 // 60 second timeout
+      });
+      
+      console.log('🔍 Gemini API Response Status:', response.status);
+      
+      return this.processGeminiResponse(response);
+    } catch (error) {
+      // Handle 429 rate limit with exponential backoff
+      if (error.response && error.response.status === 429 && retryCount < 3) {
+        const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`⏳ Rate limit hit (429). Waiting ${waitTime/1000}s before retry ${retryCount + 1}/3...`);
+        
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return this.callGemini(prompt, retryCount + 1);
       }
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': this.config.apiKey
-      }
-    });
-
-    console.log('🔍 Gemini API Response Status:', response.status);
+      
+      throw error;
+    }
+  }
+  
+  async processGeminiResponse(response) {
 
     // Check if response has the expected structure
     if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
@@ -255,6 +275,7 @@ class AIService {
         content: prompt
       }],
       temperature: this.config.temperature,
+      max_tokens: 4096,
       ...this.config.settings
     }, {
       headers: {
@@ -275,6 +296,7 @@ class AIService {
     
     const response = await axios.post(url, {
       model: this.config.model,
+      max_tokens: 4096,
       temperature: this.config.temperature,
       messages: [{
         role: 'user',
@@ -309,6 +331,7 @@ class AIService {
         content: prompt
       }],
       temperature: this.config.temperature,
+      max_tokens: 4096,
       ...this.config.settings
     }, {
       headers: {

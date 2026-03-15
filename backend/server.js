@@ -9,6 +9,32 @@ const Favorite = require('./src/models/Favorite');
 const QuizResult = require('./src/models/QuizResult');
 const { errorHandler, notFoundHandler, logger } = require('./src/middleware/errorHandler');
 const mongoManager = require('./src/config/mongodb');
+const dns = require('dns');
+
+// Map of hostnames to resolved IP addresses to bypass ISP DNS blocking of MongoDB Atlas
+const hostToIpMap = {
+  '_mongodb._tcp.cluster0.yg0v7az.mongodb.net': '159.41.227.3',
+  'ac-be6qcjz-shard-00-00.yg0v7az.mongodb.net': '159.41.227.3',
+  'ac-be6qcjz-shard-00-01.yg0v7az.mongodb.net': '159.41.199.185',
+  'ac-be6qcjz-shard-00-02.yg0v7az.mongodb.net': '159.41.227.8',
+  'cluster0.yg0v7az.mongodb.net': '159.41.227.3'
+};
+
+const originalLookup = dns.lookup;
+dns.lookup = function(hostname, options, callback) {
+  if (hostToIpMap[hostname]) {
+    console.log(`[DNS PATCH] Intercepted lookup for ${hostname} -> ${hostToIpMap[hostname]}`);
+    if (typeof options === 'function') {
+      callback = options;
+      options = { family: 4, all: false };
+    }
+    if (options && options.all) {
+      return callback(null, [{ address: hostToIpMap[hostname], family: 4 }]);
+    }
+    return callback(null, hostToIpMap[hostname], 4);
+  }
+  return originalLookup(hostname, options, callback);
+};
 
 // Load environment variables manually
 try {
