@@ -1997,8 +1997,19 @@ Return only the JSON, no additional text.`;
 // Get user's documents
 router.get('/', auth, async (req, res) => {
   try {
-    const documents = await Document.find({ user: req.user._id })
-      .select('title filename questions uploadedAt condensedText condensedTextLength')
+    const { moduleId } = req.query;
+    
+    // Build query based on module filter
+    const query = { user: req.user._id };
+    
+    if (moduleId !== undefined) {
+      // If moduleId is 'null' or empty, get documents without a module
+      query.module = (moduleId === 'null' || moduleId === '') ? null : moduleId;
+    }
+    
+    const documents = await Document.find(query)
+      .select('title filename questions uploadedAt condensedText condensedTextLength module')
+      .populate('module', 'name color icon')
       .sort({ uploadedAt: -1 });
 
     // Add condensedTextReady status to each document

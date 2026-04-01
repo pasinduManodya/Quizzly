@@ -226,11 +226,13 @@ app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/admin', require('./src/routes/aiConfig'));
 app.use('/api/admin', require('./src/routes/seed'));
 app.use('/api/documents', require('./src/routes/documents'));
+app.use('/api/modules', require('./src/routes/modules'));
 app.use('/api/quiz', require('./src/routes/quiz'));
 app.use('/api/favorites', require('./src/routes/favorites'));
 app.use('/api/contact', require('./src/routes/contact'));
 app.use('/api/admin', require('./src/routes/pricing'));
 app.use('/api/pricing', require('./src/routes/pricing'));
+app.use('/api/profile', require('./src/routes/profile'));
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

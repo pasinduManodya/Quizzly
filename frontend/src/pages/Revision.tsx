@@ -279,7 +279,7 @@ const Revision: React.FC = () => {
     return formatted;
   };
 
-  const handleDownloadQuizPDF = () => {
+  const handleDownloadQuizPDF = async () => {
     if (!selectedQuiz) return;
     
     // Create a quiz result object in the format expected by generateQuizPDF
@@ -294,7 +294,7 @@ const Revision: React.FC = () => {
       userEmail: user?.email || ''
     };
     
-    generateQuizPDF(quizResult);
+    await generateQuizPDF(quizResult);
   };
 
   if (loading) {

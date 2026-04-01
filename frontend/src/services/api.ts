@@ -178,3 +178,25 @@ export const pricingAPI = {
     }
   })
 };
+
+// Modules API
+export const modulesAPI = {
+  getTree: () => axios.get('/api/modules'),
+  
+  getFlat: () => axios.get('/api/modules/flat'),
+  
+  getById: (id: string) => axios.get(`/api/modules/${id}`),
+  
+  create: (data: { name: string; description?: string; parentModule?: string | null; color?: string; icon?: string }) =>
+    axios.post('/api/modules', data),
+  
+  update: (id: string, data: { name?: string; description?: string; parentModule?: string | null; color?: string; icon?: string; order?: number }) =>
+    axios.put(`/api/modules/${id}`, data),
+  
+  delete: (id: string) => axios.delete(`/api/modules/${id}`),
+  
+  moveDocument: (moduleId: string | null, documentId: string) =>
+    axios.post(`/api/modules/${moduleId || 'null'}/documents/${documentId}`),
+  
+  getPath: (id: string) => axios.get(`/api/modules/${id}/path`)
+};

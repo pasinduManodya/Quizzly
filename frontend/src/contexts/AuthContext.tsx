@@ -4,6 +4,10 @@ import axios from 'axios';
 interface User {
   id: string;
   email: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
   maxDocuments: number;
   isGuest?: boolean;
   role?: string;

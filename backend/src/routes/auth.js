@@ -80,6 +80,10 @@ router.post('/register', [
       user: {
         id: user._id,
         email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatar: user.avatar,
         maxDocuments: user.maxDocuments,
         role: user.role
       }
@@ -201,6 +205,10 @@ router.post('/login', [
       user: {
         id: user._id,
         email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatar: user.avatar,
         maxDocuments: user.maxDocuments,
         role: user.role
       }
@@ -271,6 +279,10 @@ router.post('/guest', asyncHandler(async (req, res) => {
       user: {
         id: guestUser._id,
         email: 'Guest User',
+        username: guestUser.username,
+        firstName: guestUser.firstName,
+        lastName: guestUser.lastName,
+        avatar: guestUser.avatar,
         maxDocuments: guestUser.maxDocuments,
         isGuest: true,
         role: guestUser.role
@@ -290,6 +302,10 @@ router.get('/me', auth, asyncHandler(async (req, res) => {
       user: {
         id: req.user._id,
         email: req.user.email || 'Guest User',
+        username: req.user.username,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        avatar: req.user.avatar,
         maxDocuments: req.user.maxDocuments,
         isGuest: req.user.isGuest,
         role: req.user.role

@@ -406,7 +406,7 @@
   min-height: 100vh;
   display: flex;
   align-items: center;
-  padding-top: 64px;
+  padding-top: 80px;
   background: var(--white);
 }
 
@@ -415,7 +415,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 72px;
   align-items: center;
-  padding: 96px 0;
+  padding: 40px 0 96px 0;
 }
 
 .hero-eyebrow {

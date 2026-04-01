@@ -5,12 +5,14 @@ import { registerServiceWorker } from './utils/pwa';
 import PWAStatusIndicator from './components/PWAStatusIndicator';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/DashboardWithModules';
 import Quiz from './pages/Quiz';
 import ResultSheet from './pages/ResultSheet';
 import Revision from './pages/Revision';
 import Favorites from './pages/Favorites';
 import SummaryPage from './pages/SummaryPage';
+import Profile from './pages/Profile';
+import ProfileSearch from './pages/ProfileSearch';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import About from './pages/About';
@@ -94,6 +96,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Favorites />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile/:username" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/search" 
+              element={
+                <ProtectedRoute>
+                  <ProfileSearch />
                 </ProtectedRoute>
               } 
             />

@@ -8,6 +8,15 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  username: {
+    type: String,
+    required: false,
+    unique: true,
+    sparse: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30
+  },
   password: {
     type: String,
     required: function() {
@@ -18,6 +27,19 @@ const userSchema = new mongoose.Schema({
   isGuest: {
     type: Boolean,
     default: false
+  },
+  avatar: {
+    type: String,
+    default: 'avatar-1'
+  },
+  bio: {
+    type: String,
+    default: '',
+    maxlength: 500
+  },
+  dateOfBirth: {
+    type: Date,
+    default: null
   },
   documents: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -86,6 +108,18 @@ const userSchema = new mongoose.Schema({
     default: ''
   },
   country: {
+    type: String,
+    default: ''
+  },
+  state: {
+    type: String,
+    default: ''
+  },
+  university: {
+    type: String,
+    default: ''
+  },
+  school: {
     type: String,
     default: ''
   },

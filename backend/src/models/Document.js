@@ -63,6 +63,11 @@ const documentSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  module: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Module',
+    default: null
+  },
   uploadedAt: {
     type: Date,
     default: Date.now

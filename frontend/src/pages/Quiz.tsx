@@ -66,6 +66,9 @@ const Quiz: React.FC = () => {
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [generatingMore, setGeneratingMore] = useState(false);
   const [generateMoreError, setGenerateMoreError] = useState('');
+  const [deletingQuestion, setDeletingQuestion] = useState<Record<number, boolean>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
   
 
   const fetchDocument = useCallback(async () => {
@@ -143,7 +146,7 @@ const Quiz: React.FC = () => {
     setShowExplanation(true);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!document) return;
     
     const quizResult = {
@@ -157,7 +160,7 @@ const Quiz: React.FC = () => {
       userEmail: user?.email || ''
     };
     
-    generateQuizPDF(quizResult);
+    await generateQuizPDF(quizResult);
   };
 
   const formatQuestionText = (questionText: string) => {
@@ -442,6 +445,23 @@ const Quiz: React.FC = () => {
                     disabled={favoritePending[questionIndex]}
                   >
                     {favorited[questionIndex] ? '★' : '☆'}
+                  </button>
+                  <button
+                    title="Delete this question"
+                    onClick={() => {
+                      if (deletingQuestion[questionIndex]) return;
+                      setQuestionToDelete(questionIndex);
+                      setShowDeleteConfirm(true);
+                    }}
+                    className={`delete-btn ${deletingQuestion[questionIndex] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={deletingQuestion[questionIndex]}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      <line x1="10" y1="11" x2="10" y2="17"/>
+                      <line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
                   </button>
                   <button
                     onClick={async () => {
@@ -931,6 +951,106 @@ const Quiz: React.FC = () => {
                 <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && questionToDelete !== null && (
+        <div className="results-modal-overlay">
+          <div className="results-modal" style={{ maxWidth: '480px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ 
+                width: '64px', 
+                height: '64px', 
+                margin: '0 auto 20px', 
+                background: 'linear-gradient(135deg, #fee2e2, #fecaca)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+              </div>
+              <h2 className="results-title" style={{ marginBottom: '12px' }}>Delete Question?</h2>
+              <p style={{ 
+                fontSize: '1rem', 
+                color: '#4a4a6a', 
+                lineHeight: '1.6',
+                fontFamily: 'Outfit, sans-serif'
+              }}>
+                Are you sure you want to delete this question? This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="results-actions" style={{ gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setQuestionToDelete(null);
+                }}
+                className="action-btn action-btn-primary"
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (questionToDelete === null) return;
+                  
+                  try {
+                    setDeletingQuestion(prev => ({ ...prev, [questionToDelete]: true }));
+                    setShowDeleteConfirm(false);
+                    
+                    const indexToDelete = questionToDelete;
+                    
+                    setDocument(prev => {
+                      if (!prev) return prev;
+                      const newQuestions = prev.questions.filter((_, i) => i !== indexToDelete);
+                      return { ...prev, questions: newQuestions };
+                    });
+                    
+                    setAnswers(prev => prev.filter((_, i) => i !== indexToDelete));
+                    
+                    setAnsweredQuestions(prev => {
+                      const next = new Set<number>();
+                      Array.from(prev).forEach(idx => {
+                        if (idx < indexToDelete) next.add(idx);
+                        else if (idx > indexToDelete) next.add(idx - 1);
+                      });
+                      return next;
+                    });
+                    
+                    setTotal(prev => Math.max(0, prev - 1));
+                  } catch (e: any) {
+                    setError(e?.response?.data?.message || 'Failed to delete question');
+                  } finally {
+                    setDeletingQuestion(prev => ({ ...prev, [questionToDelete]: false }));
+                    setQuestionToDelete(null);
+                  }
+                }}
+                className="action-btn"
+                style={{ 
+                  flex: 1,
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  color: 'white',
+                  border: 'none'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                Delete Question
+              </button>
+            </div>
           </div>
         </div>
       )}
