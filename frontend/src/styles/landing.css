@@ -197,10 +197,12 @@
 }
 
 .nav-inner {
-  height: 64px;
+  height: auto;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 10px 0;
 }
 
 .logo {
@@ -1669,8 +1671,12 @@ footer {
 .foot-logo {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 11px;
   margin-bottom: 18px;
+}
+.foot-logo img {
+  display: block;
 }
 
 .foot-logo .logo-mark {

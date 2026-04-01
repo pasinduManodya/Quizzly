@@ -74,10 +74,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onOpenModal }) => 
         <div className="foot-grid">
           <div>
             <div className="foot-logo">
-              <div className="logo-mark">
-                <Icon type="logo" />
-              </div>
-              <span className="logo-name">Quizz<span>ly</span></span>
+              <img src="/Logo_Final.svg" alt="Quizzly Logo" style={{ width: '144px', height: 'auto', maxHeight: '40px', filter: 'invert(1) brightness(2)' }} />
             </div>
             <p className="foot-desc">
               Making learning engaging, effective and lasting for students and professionals worldwide.

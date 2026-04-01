@@ -901,6 +901,11 @@ const Dashboard: React.FC = () => {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-inner">
+          {/* Logo */}
+          <div className="header-logo">
+            <Logo size={120} />
+          </div>
+          
           {/* User Profile Section */}
           <div className="header-brand">
             <div 

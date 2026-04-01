@@ -26,7 +26,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({ onOpenModal }) => {
       <div className="container">
         <div className="nav-inner">
           <a href="#" className="logo">
-            <img src="/Logo_Full.png" alt="Quizzly Logo" style={{ maxHeight: '40px', height: 'auto' }} />
+            <img src="/Logo_Final.svg" alt="Quizzly Logo" style={{ width: '144px', height: 'auto', maxHeight: '40px' }} />
           </a>
           
           <ul className="nav-links">

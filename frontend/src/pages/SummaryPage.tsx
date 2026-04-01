@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import Logo from '../components/Logo';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { documentsAPI } from '../services/api';
 import '../styles/summaryPage.css';
 
@@ -284,11 +286,8 @@ const SummaryPage: React.FC<SummaryPageProps> = () => {
 
   if (loading) {
     return (
-      <div className="summary-page">
-        <div className="summary-loading">
-          <div className="loading-spinner"></div>
-          <p>Loading summary...</p>
-        </div>
+      <div className="summary-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner size="lg" showLogo={true} text="Loading summary..." />
       </div>
     );
   }
@@ -312,6 +311,11 @@ const SummaryPage: React.FC<SummaryPageProps> = () => {
       {/* Header */}
       <header className="summary-header">
         <div className="summary-header-content">
+          {/* Logo */}
+          <div className="header-logo">
+            <Logo size={120} />
+          </div>
+          
           <button onClick={() => navigate('/dashboard')} className="btn-back-header">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="19" y1="12" x2="5" y2="12"/>

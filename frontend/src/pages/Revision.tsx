@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { quizAPI } from '../services/api';
+import Logo from '../components/Logo';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { generateQuizPDF } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/revision.css';
@@ -223,26 +225,7 @@ const Revision: React.FC = () => {
   const formatExplanation = (explanation: string) => {
     if (!explanation) return '';
     
-    // Enhanced formatting with topic patterns and icons
-    const topicPatterns = [
-      { pattern: /(key concept|main concept|primary concept)/gi, icon: '🔑' },
-      { pattern: /(important|critical|essential|vital)/gi, icon: '⭐' },
-      { pattern: /(example|for instance|such as)/gi, icon: '💡' },
-      { pattern: /(note|remember|keep in mind)/gi, icon: '📝' },
-      { pattern: /(warning|caution|be careful)/gi, icon: '⚠️' },
-      { pattern: /(definition|define|means)/gi, icon: '📖' },
-      { pattern: /(process|steps|procedure)/gi, icon: '🔄' },
-      { pattern: /(difference|distinguish|compare)/gi, icon: '⚖️' },
-      { pattern: /(advantage|benefit|pros)/gi, icon: '✅' },
-      { pattern: /(disadvantage|limitation|cons)/gi, icon: '❌' }
-    ];
-
     let formatted = explanation;
-
-    // Apply topic patterns with icons
-    topicPatterns.forEach(({ pattern, icon }) => {
-      formatted = formatted.replace(pattern, `${icon} $1`);
-    });
 
     // Convert markdown-style formatting
     formatted = formatted
@@ -300,10 +283,7 @@ const Revision: React.FC = () => {
   if (loading) {
     return (
       <div className="revision-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', border: '3px solid #4361ee', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
-          <p style={{ fontSize: '1rem', color: '#4a4a6a', fontFamily: 'Outfit, sans-serif' }}>Loading revision history...</p>
-        </div>
+        <LoadingSpinner size="lg" showLogo={true} text="Loading revision history..." />
       </div>
     );
   }
@@ -313,6 +293,11 @@ const Revision: React.FC = () => {
       {/* Header */}
       <header className="revision-header">
         <div className="revision-header-inner">
+          {/* Logo */}
+          <div className="header-logo">
+            <Logo size={120} />
+          </div>
+          
           <div className="revision-title-section">
             <h1>Revision History</h1>
             <p>Track your learning progress and review mistakes</p>

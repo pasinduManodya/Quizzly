@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { registerServiceWorker } from './utils/pwa';
 import PWAStatusIndicator from './components/PWAStatusIndicator';
+import SplashScreen from './components/SplashScreen';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/DashboardWithModules';
@@ -23,10 +24,20 @@ import Landing from './pages/Landing';
 import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
     // Register service worker for PWA functionality
     registerServiceWorker();
   }, []);
+
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
+
+  if (showSplash) {
+    return <SplashScreen onComplete={handleSplashComplete} />;
+  }
 
   return (
     <AuthProvider>

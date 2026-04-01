@@ -3,7 +3,7 @@ import React from 'react';
 function QuizzlyLogo() {
   return (
     <div className="logo-row">
-      <img src="/Logo_Full.png" alt="Quizzly Logo" style={{ maxHeight: '40px', height: 'auto' }} />
+      <img src="/Logo_Final.svg" alt="Quizzly Logo" style={{ width: '200px', height: 'auto', maxHeight: '55px' }} />
     </div>
   );
 }

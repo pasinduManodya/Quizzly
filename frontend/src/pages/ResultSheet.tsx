@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { quizAPI } from '../services/api';
+import Logo from '../components/Logo';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 interface QuizResult {
@@ -70,7 +71,7 @@ const ResultSheet: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner size="lg" showLogo={true} text="Loading results..." />
       </div>
     );
   }
@@ -106,6 +107,11 @@ const ResultSheet: React.FC = () => {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
+            {/* Logo */}
+            <div className="header-logo">
+              <Logo size={120} />
+            </div>
+            
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Quiz Results</h1>
               <p className="text-gray-600">{quizResult.document.title}</p>

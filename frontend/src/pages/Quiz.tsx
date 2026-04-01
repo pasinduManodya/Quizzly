@@ -6,6 +6,7 @@ import Stopwatch from '../components/Stopwatch';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { generateQuizPDF } from '../utils/pdfGenerator';
 import { useAuth } from '../contexts/AuthContext';
+import Logo from '../components/Logo';
 import '../styles/quiz.css';
 
 interface Question {
@@ -289,10 +290,7 @@ const Quiz: React.FC = () => {
   if (loading) {
     return (
       <div className="quiz-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', margin: '0 auto 20px', border: '3px solid #4361ee', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
-          <p style={{ fontSize: '1rem', color: '#4a4a6a', fontFamily: 'Outfit, sans-serif' }}>Loading quiz...</p>
-        </div>
+        <LoadingSpinner size="lg" showLogo={true} text="Loading quiz..." />
       </div>
     );
   }
@@ -362,6 +360,11 @@ const Quiz: React.FC = () => {
       {/* Header */}
       <header className="quiz-header">
         <div className="quiz-header-inner">
+          {/* Logo */}
+          <div className="header-logo">
+            <Logo size={120} />
+          </div>
+          
           {/* Title Section */}
           <div className="quiz-title-section">
             <h1 className="quiz-title">{document.title}</h1>

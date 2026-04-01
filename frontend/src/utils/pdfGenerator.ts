@@ -1,5 +1,32 @@
 import jsPDF from 'jspdf';
 
+// Helper function to convert SVG to PNG data URL
+const svgToPng = (svgUrl: string, width: number, height: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        reject(new Error('Could not get canvas context'));
+      }
+    };
+    
+    img.onerror = () => reject(new Error('Failed to load SVG'));
+    img.src = svgUrl;
+  });
+};
+
 interface Question {
   _id: string;
   type: 'mcq' | 'short' | 'essay' | 'structured_essay';
@@ -39,47 +66,71 @@ export const generateQuizPDF = async (quizResult: QuizResult): Promise<void> => 
   let yPosition = margin;
   let pageNumber = 1;
   
-  // Load logo image
+  // Load and convert logo
   let logoDataUrl: string | null = null;
   try {
-    const response = await fetch('/Logo_Full.png');
-    const blob = await response.blob();
-    logoDataUrl = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(blob);
-    });
+    // Use actual SVG dimensions for proper aspect ratio
+    logoDataUrl = await svgToPng('/Logo_Final.svg', 2946.64, 766.24);
   } catch (error) {
-    console.error('Failed to load logo:', error);
+    console.error('Failed to load logo for PDF:', error);
   }
   
-  // Helper function to add Quizzly header
-  const addPageHeader = () => {
+  // Helper function to add creative first page header
+  const addFirstPageHeader = () => {
     if (logoDataUrl) {
-      // Add logo image centered at top, maintaining aspect ratio
-      const logoHeight = 10;
-      const logoX = (pageWidth - 40) / 2;
-      pdf.addImage(logoDataUrl, 'PNG', logoX, 6, 0, logoHeight, undefined, 'FAST');
+      // Add logo image centered (maintaining aspect ratio: 2946.64:766.24 ≈ 3.85:1)
+      const logoHeight = 12;
+      const logoWidth = logoHeight * (2946.64 / 766.24); // Maintain exact SVG aspect ratio
+      const logoX = (pageWidth - logoWidth) / 2;
+      pdf.addImage(logoDataUrl, 'PNG', logoX, 10, logoWidth, logoHeight);
     } else {
-      // Fallback to text if logo fails to load
-      pdf.setFontSize(10);
+      // Fallback to text
+      pdf.setFontSize(18);
       pdf.setFont('times', 'bold');
-      pdf.setTextColor(40, 40, 40);
-      pdf.text('QUIZZLY', pageWidth / 2, 12, { align: 'center' });
-      
-      pdf.setFontSize(7);
-      pdf.setFont('times', 'italic');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Beat Your Best', pageWidth / 2, 16, { align: 'center' });
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('QUIZZLY', pageWidth / 2, 18, { align: 'center' });
     }
     
-    // Horizontal line
+    // Website below logo (with vertical padding)
+    pdf.setFontSize(10);
+    pdf.setFont('times', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('Quizzlyedu.com', pageWidth / 2, 26, { align: 'center' });
+    
+    // Horizontal line separator (with padding)
     pdf.setDrawColor(180, 180, 180);
     pdf.setLineWidth(0.3);
-    pdf.line(margin, 18, pageWidth - margin, 18);
+    pdf.line(margin, 32, pageWidth - margin, 32);
   };
   
-  // Helper function to add footer with "Powered by Quizzly"
+  // Helper function to add standard page header
+  const addPageHeader = () => {
+    if (logoDataUrl) {
+      // Add small logo on left (maintaining aspect ratio: 2946.64:766.24)
+      const logoHeight = 8;
+      const logoWidth = logoHeight * (2946.64 / 766.24); // Maintain exact SVG aspect ratio
+      pdf.addImage(logoDataUrl, 'PNG', margin, 8, logoWidth, logoHeight);
+    } else {
+      // Fallback to text
+      pdf.setFontSize(11);
+      pdf.setFont('times', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('QUIZZLY', margin, 12);
+    }
+    
+    // Website on right
+    pdf.setFontSize(9);
+    pdf.setFont('times', 'normal');
+    pdf.setTextColor(60, 60, 60);
+    pdf.text('Quizzlyedu.com', pageWidth - margin, 12, { align: 'right' });
+    
+    // Horizontal line (with spacing)
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.3);
+    pdf.line(margin, 19, pageWidth - margin, 19);
+  };
+  
+  // Helper function to add footer with branding
   const addPageFooter = () => {
     const footerY = pageHeight - 10;
     
@@ -88,11 +139,27 @@ export const generateQuizPDF = async (quizResult: QuizResult): Promise<void> => 
     pdf.setLineWidth(0.3);
     pdf.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
     
-    // Quizzly branding
-    pdf.setFontSize(8);
-    pdf.setTextColor(80, 80, 80);
-    pdf.setFont('times', 'bold');
-    pdf.text('Powered by QUIZZLY', pageWidth / 2, footerY, { align: 'center' });
+    if (logoDataUrl) {
+      // Add small logo (maintaining aspect ratio: 2946.64:766.24)
+      const logoHeight = 5;
+      const logoWidth = logoHeight * (2946.64 / 766.24); // Maintain exact SVG aspect ratio
+      pdf.addImage(logoDataUrl, 'PNG', margin, footerY - 3.5, logoWidth, logoHeight);
+      
+      // Website next to logo
+      pdf.setFontSize(8);
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFont('times', 'normal');
+      pdf.text('- Quizzlyedu.com', margin + logoWidth + 2, footerY);
+    } else{
+      // Fallback to text
+      pdf.setFontSize(8);
+      pdf.setTextColor(80, 80, 80);
+      pdf.setFont('times', 'bold');
+      pdf.text('QUIZZLY', margin, footerY);
+      
+      pdf.setFont('times', 'normal');
+      pdf.text('- Quizzlyedu.com', margin + 15, footerY);
+    }
     
     // Page number
     pdf.setFont('times', 'normal');
@@ -107,7 +174,7 @@ export const generateQuizPDF = async (quizResult: QuizResult): Promise<void> => 
       pdf.addPage();
       pageNumber++;
       addPageHeader();
-      yPosition = 25;
+      yPosition = 30; // Increased to account for header spacing
       return true;
     }
     return false;
@@ -134,7 +201,11 @@ export const generateQuizPDF = async (quizResult: QuizResult): Promise<void> => 
     return y + (lines.length * fontSize * 0.35 * lineSpacing);
   };
   
-  // ==================== TITLE SECTION (First Page - No Header) ====================
+  // ==================== FIRST PAGE WITH CREATIVE HEADER ====================
+  addFirstPageHeader();
+  yPosition = 39;
+  
+  // Title section
   pdf.setFontSize(16);
   pdf.setFont('times', 'bold');
   pdf.setTextColor(0, 0, 0);
@@ -145,14 +216,14 @@ export const generateQuizPDF = async (quizResult: QuizResult): Promise<void> => 
     pdf.text(line, pageWidth / 2, yPosition + (index * 6), { align: 'center' });
   });
   
-  yPosition += titleLines.length * 6 + 10;
+  yPosition += titleLines.length * 6 + 6;
   
   // Add a horizontal line under title
   pdf.setLineWidth(0.5);
   pdf.setDrawColor(0, 0, 0);
   pdf.line(margin, yPosition, pageWidth - margin, yPosition);
   
-  yPosition += 10;
+  yPosition += 8;
   
   // ==================== QUESTIONS SECTION ====================
   document.questions.forEach((question, index) => {

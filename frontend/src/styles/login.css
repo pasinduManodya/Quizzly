@@ -210,9 +210,13 @@
    LOGO
 ══════════════════════════════════ */
 .logo-row {
-  display:flex; align-items:center; gap:11px;
+  display:flex; align-items:center; justify-content:center; gap:11px;
   margin-bottom:30px;
   animation:fadeUp .5s .08s var(--ease) both;
+}
+.logo-row img {
+  display: block;
+  margin: 0 auto;
 }
 @keyframes fadeUp {
   from { opacity:0; transform:translateY(10px) }

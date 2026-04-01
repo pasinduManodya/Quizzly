@@ -28,6 +28,10 @@
   gap: 24px;
 }
 
+.header-logo {
+  flex-shrink: 0;
+}
+
 .revision-title-section h1 {
   font-family: 'Playfair Display', serif;
   font-size: 2rem;

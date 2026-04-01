@@ -43,27 +43,27 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     switch (variant) {
       case 'success':
         return {
-          bg: 'bg-gradient-to-r from-gray-700 to-gray-900',
-          glow: 'shadow-gray-700/50',
-          text: 'text-gray-800'
+          bg: 'bg-gradient-to-r from-gray-800 to-black',
+          glow: 'shadow-black/50',
+          text: 'text-gray-900'
         };
       case 'warning':
         return {
-          bg: 'bg-gradient-to-r from-gray-700 to-gray-900',
-          glow: 'shadow-gray-700/50',
-          text: 'text-gray-800'
+          bg: 'bg-gradient-to-r from-gray-800 to-black',
+          glow: 'shadow-black/50',
+          text: 'text-gray-900'
         };
       case 'info':
         return {
-          bg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
-          glow: 'shadow-blue-500/50',
-          text: 'text-blue-700'
+          bg: 'bg-gradient-to-r from-gray-700 to-gray-900',
+          glow: 'shadow-gray-700/50',
+          text: 'text-gray-900'
         };
       default:
         return {
-          bg: 'bg-gradient-to-r from-blue-500 to-purple-600',
-          glow: 'shadow-blue-500/50',
-          text: 'text-blue-700'
+          bg: 'bg-gradient-to-r from-gray-800 to-black',
+          glow: 'shadow-black/50',
+          text: 'text-gray-900'
         };
     }
   };
