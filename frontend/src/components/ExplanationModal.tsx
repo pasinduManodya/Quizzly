@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { quizAPI } from '../services/api';
 import EnhancedExplanationLoading from './EnhancedExplanationLoading';
 
+interface Statement {
+  text: string;
+  correctAnswer: string;
+  explanation: string;
+}
+
 interface ExplanationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -9,8 +15,9 @@ interface ExplanationModalProps {
   correctAnswer: string;
   userAnswer: string;
   originalExplanation: string;
-  questionType?: 'mcq' | 'short' | 'essay' | 'structured_essay';
+  questionType?: 'mcq' | 'short' | 'essay' | 'structured_essay' | 'true_false';
   options?: string[];
+  statements?: Statement[];
 }
 
 const ExplanationModal: React.FC<ExplanationModalProps> = ({
@@ -21,7 +28,8 @@ const ExplanationModal: React.FC<ExplanationModalProps> = ({
   userAnswer,
   originalExplanation,
   questionType = 'mcq',
-  options = []
+  options = [],
+  statements = []
 }) => {
   const [enhancedExplanation, setEnhancedExplanation] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -222,7 +230,7 @@ const ExplanationModal: React.FC<ExplanationModalProps> = ({
             <p className="text-sm sm:text-lg text-gray-700 leading-relaxed ml-9 sm:ml-11">{question}</p>
           </div>
 
-          {/* MCQ Options Grid or Simple Answers */}
+          {/* MCQ Options Grid or True/False Statements or Simple Answers */}
           {questionType === 'mcq' && options && options.length > 0 ? (
             <div className="mb-6 sm:mb-8">
               <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Answer Options:</h4>
@@ -278,6 +286,51 @@ const ExplanationModal: React.FC<ExplanationModalProps> = ({
                               Your Answer
                             </span>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : questionType === 'true_false' && statements && statements.length > 0 ? (
+            <div className="mb-6 sm:mb-8">
+              <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Statements & Explanations:</h4>
+              <div className="space-y-4">
+                {statements.map((statement, index) => {
+                  const stmtLabel = String.fromCharCode(65 + index);
+                  const userAnswerParts = userAnswer.split(',').map(a => a.trim());
+                  const userStmtAnswer = userAnswerParts[index] || '';
+                  const isCorrect = userStmtAnswer === statement.correctAnswer;
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`p-4 sm:p-5 rounded-lg border-2 ${
+                        isCorrect ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3 mb-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                          isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                        }`}>
+                          {stmtLabel}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-base font-medium text-gray-900 mb-2">{statement.text}</p>
+                          <div className="flex items-center gap-4 mb-2">
+                            <span className={`text-sm font-semibold ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                              Your Answer: {userStmtAnswer || 'Not answered'}
+                            </span>
+                            <span className="text-sm font-semibold text-green-700">
+                              Correct: {statement.correctAnswer}
+                            </span>
+                          </div>
+                          <div className={`mt-3 p-3 rounded ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
+                            <p className="text-sm text-gray-800">
+                              <span className="font-semibold">Explanation:</span> {statement.explanation}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>

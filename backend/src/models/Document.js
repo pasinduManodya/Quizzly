@@ -29,7 +29,7 @@ const documentSchema = new mongoose.Schema({
   questions: [{
     type: {
       type: String,
-      enum: ['mcq', 'short', 'essay', 'structured_essay'],
+      enum: ['mcq', 'short', 'essay', 'structured_essay', 'true_false'],
       required: true
     },
     question: {
@@ -37,6 +37,11 @@ const documentSchema = new mongoose.Schema({
       required: true
     },
     options: [String], // For MCQ questions
+    statements: [{
+      text: String,
+      correctAnswer: String,
+      explanation: String
+    }], // For True/False questions - 5 statements per question
     correctAnswer: {
       type: String,
       required: true

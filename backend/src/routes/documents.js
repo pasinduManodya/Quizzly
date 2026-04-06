@@ -892,7 +892,9 @@ async function generateQuestions(text, options = {}) {
         let mappedType = qt;
         
         // Map AI response types to our frontend types
-        if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
+        if (qt.includes('true_false') || qt.includes('true/false')) {
+          mappedType = 'true_false';
+        } else if (qt.includes('essay') || qt.includes('short') || qt.includes('structured')) {
           mappedType = 'short';
         } else if (qt.includes('mcq') || qt.includes('multiple')) {
           mappedType = 'mcq';
@@ -901,13 +903,24 @@ async function generateQuestions(text, options = {}) {
           mappedType = options.type === 'essay' || options.type === 'structured_essay' ? 'short' : 'mcq';
         }
         
-        return {
+        const questionObj = {
           type: mappedType,
           question: q.question || '',
           options: convertOptionsToArray(q.options || {}),
           correctAnswer: convertCorrectAnswerToString(q.correct || q.correctAnswer),
           explanation: q.explanation || ''
         };
+        
+        // Add statements for true_false questions
+        if (mappedType === 'true_false' && q.statements && Array.isArray(q.statements)) {
+          questionObj.statements = q.statements.map(stmt => ({
+            text: stmt.text || '',
+            correctAnswer: stmt.correct || stmt.correctAnswer || '',
+            explanation: stmt.explanation || ''
+          }));
+        }
+        
+        return questionObj;
       });
       
       // Limit to requested number of questions

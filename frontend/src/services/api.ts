@@ -76,18 +76,18 @@ export const documentsAPI = {
   // Regenerate questions for a document with options
   regenerate: (
     documentId: string,
-    options: { type: 'mcq'|'essay'|'structured_essay'|'mixed'; numQuestions?: number; coverAllTopics?: boolean }
+    options: { type: 'mcq'|'essay'|'structured_essay'|'true_false'|'mixed'; numQuestions?: number; coverAllTopics?: boolean }
   ) => axios.post(`/api/documents/${documentId}/regenerate`, options),
 
   regenerateOne: (
     documentId: string,
     index: number,
-    options: { type?: 'mcq'|'essay'|'structured_essay'|'mixed'; coverAllTopics?: boolean }
+    options: { type?: 'mcq'|'essay'|'structured_essay'|'true_false'|'mixed'; coverAllTopics?: boolean }
   ) => axios.post(`/api/documents/${documentId}/regenerate-one`, { index, ...options }),
 
   generateMore: (
     documentId: string,
-    options: { type: 'mcq'|'essay'|'structured_essay'|'mixed'; numQuestions?: number }
+    options: { type: 'mcq'|'essay'|'structured_essay'|'true_false'|'mixed'; numQuestions?: number }
   ) => axios.post(`/api/documents/${documentId}/generate-more`, options),
 
   summarize: (documentId: string, options?: { force?: boolean; signal?: AbortSignal }) => 

@@ -27,11 +27,18 @@ const svgToPng = (svgUrl: string, width: number, height: number): Promise<string
   });
 };
 
+interface Statement {
+  text: string;
+  correctAnswer: string;
+  explanation: string;
+}
+
 interface Question {
   _id: string;
-  type: 'mcq' | 'short' | 'essay' | 'structured_essay';
+  type: 'mcq' | 'short' | 'essay' | 'structured_essay' | 'true_false';
   question: string;
   options?: string[];
+  statements?: Statement[];
   correctAnswer: string;
   explanation: string;
 }
@@ -280,6 +287,37 @@ export const generateQuizPDF = async (quizResult: QuizResult): Promise<void> => 
         );
         
         yPosition += 4;
+      });
+      
+      yPosition += 5;
+    } else if (question.type === 'true_false' && question.statements) {
+      // Statements for True/False questions
+      question.statements.forEach((statement, stmtIndex) => {
+        checkPageBreak(15);
+        
+        const stmtLabel = String.fromCharCode(65 + stmtIndex);
+        pdf.setFontSize(11);
+        pdf.setFont('times', 'normal');
+        
+        // Statement label
+        pdf.text(`${stmtLabel}.`, margin + 15, yPosition);
+        
+        // Statement text
+        yPosition = addWrappedText(
+          statement.text,
+          margin + 23,
+          yPosition,
+          contentWidth - 80,
+          11,
+          'normal',
+          1.3
+        );
+        
+        // True/False options on the same line
+        pdf.setFontSize(10);
+        pdf.text('[ ] True  [ ] False', pageWidth - margin - 60, yPosition - 5);
+        
+        yPosition += 5;
       });
       
       yPosition += 5;

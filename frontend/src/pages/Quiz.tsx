@@ -9,11 +9,18 @@ import { useAuth } from '../contexts/AuthContext';
 import Logo from '../components/Logo';
 import '../styles/quiz.css';
 
+interface Statement {
+  text: string;
+  correctAnswer: string;
+  explanation: string;
+}
+
 interface Question {
   _id: string;
-  type: 'mcq' | 'short' | 'essay' | 'structured_essay';
+  type: 'mcq' | 'short' | 'essay' | 'structured_essay' | 'true_false';
   question: string;
   options?: string[];
+  statements?: Statement[];
   correctAnswer: string;
   explanation: string;
 }
@@ -341,6 +348,18 @@ const Quiz: React.FC = () => {
     const userAnswer = String(userAnswerRaw || '');
     const correct = String(question.correctAnswer || '');
 
+    // True/False: compare all statements
+    if (question.type === 'true_false') {
+      const userParts = userAnswer.split(',').map(a => a.trim());
+      const correctParts = correct.split(',').map(a => a.trim());
+      
+      if (userParts.length !== correctParts.length) return false;
+      
+      return userParts.every((part, idx) => 
+        normalizeAnswer(part) === normalizeAnswer(correctParts[idx])
+      );
+    }
+
     // Exact normalized match
     if (normalizeAnswer(userAnswer) === normalizeAnswer(correct)) return true;
 
@@ -540,6 +559,60 @@ const Quiz: React.FC = () => {
                       </label>
                     );
                   })
+                ) : question.type === 'true_false' && question.statements ? (
+                  <div className="true-false-statements">
+                    {question.statements.map((statement, stmtIndex) => {
+                      const stmtLabel = String.fromCharCode(65 + stmtIndex);
+                      const currentAnswer = answers[questionIndex] || '';
+                      const answerParts = currentAnswer.split(',').map(a => a.trim());
+                      const thisAnswer = answerParts[stmtIndex] || '';
+                      
+                      return (
+                        <div key={stmtIndex} className="true-false-statement">
+                          <div className="statement-label">{stmtLabel}.</div>
+                          <div className="statement-content">
+                            <div className="statement-text">{statement.text}</div>
+                            <div className="statement-options">
+                              <label className="tf-option">
+                                <input
+                                  type="radio"
+                                  name={`question-${questionIndex}-statement-${stmtIndex}`}
+                                  value="True"
+                                  checked={thisAnswer === 'True'}
+                                  onChange={(e) => {
+                                    const newAnswerParts = [...answerParts];
+                                    while (newAnswerParts.length <= stmtIndex) {
+                                      newAnswerParts.push('');
+                                    }
+                                    newAnswerParts[stmtIndex] = e.target.value;
+                                    handleAnswerChange(questionIndex, newAnswerParts.join(','));
+                                  }}
+                                />
+                                <span>True</span>
+                              </label>
+                              <label className="tf-option">
+                                <input
+                                  type="radio"
+                                  name={`question-${questionIndex}-statement-${stmtIndex}`}
+                                  value="False"
+                                  checked={thisAnswer === 'False'}
+                                  onChange={(e) => {
+                                    const newAnswerParts = [...answerParts];
+                                    while (newAnswerParts.length <= stmtIndex) {
+                                      newAnswerParts.push('');
+                                    }
+                                    newAnswerParts[stmtIndex] = e.target.value;
+                                    handleAnswerChange(questionIndex, newAnswerParts.join(','));
+                                  }}
+                                />
+                                <span>False</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <>
                     <textarea
@@ -580,13 +653,13 @@ const Quiz: React.FC = () => {
                 )}
               </div>
 
-              {/* Answer Status and Immediate Correctness (MCQ only) */}
-              {answers[questionIndex] && question.type === 'mcq' && (
+              {/* Answer Status and Immediate Correctness (MCQ and True/False) */}
+              {answers[questionIndex] && (question.type === 'mcq' || question.type === 'true_false') && (
                 <div className="answer-status">
                   {(() => {
                     const userAnswer = (answers[questionIndex] || '').trim();
                     const correctAnswer = (question.correctAnswer || '').trim();
-                    const isCorrect = question.type === 'mcq' ? isAnswerCorrect(question, userAnswer) : false;
+                    const isCorrect = isAnswerCorrect(question, userAnswer);
                     return (
                       <>
                         <div className="status-header">
@@ -598,7 +671,18 @@ const Quiz: React.FC = () => {
                                 <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
                               )}
                             </svg>
-                            {isCorrect ? 'Correct' : 'Incorrect'}
+                            {(() => {
+                              if (question.type === 'true_false' && !isCorrect) {
+                                // Show score for True/False questions
+                                const userParts = userAnswer.split(',').map(a => a.trim());
+                                const correctParts = correctAnswer.split(',').map(a => a.trim());
+                                const correctCount = userParts.filter((ans, idx) => 
+                                  normalizeAnswer(ans) === normalizeAnswer(correctParts[idx])
+                                ).length;
+                                return `${correctCount}/${correctParts.length} Correct`;
+                              }
+                              return isCorrect ? 'Correct' : 'Incorrect';
+                            })()}
                           </span>
                           <button
                             onClick={() => handleViewExplanation(questionIndex)}
@@ -630,6 +714,10 @@ const Quiz: React.FC = () => {
                                   }
                                   
                                   return optionLetter + answerText;
+                                } else if (question.type === 'true_false') {
+                                  // Format True/False answers in a readable way
+                                  // correctAnswer is already in format "A:False,B:False,C:True,D:False,E:True"
+                                  return correctAnswer.split(',').map(a => a.trim()).join(' | ');
                                 }
                                 return correctAnswer;
                               })()}
@@ -865,7 +953,7 @@ const Quiz: React.FC = () => {
       </footer>
 
       {/* Explanation Modal */}
-      {document && selectedQuestionIndex !== null && (
+      {showExplanation && selectedQuestionIndex !== null && (
         <ExplanationModal
           isOpen={showExplanation}
           onClose={() => {
@@ -878,6 +966,7 @@ const Quiz: React.FC = () => {
           originalExplanation={document.questions[selectedQuestionIndex].explanation}
           questionType={document.questions[selectedQuestionIndex].type}
           options={document.questions[selectedQuestionIndex].options}
+          statements={document.questions[selectedQuestionIndex].statements}
         />
       )}
 

@@ -1,3 +1,4 @@
+// Dashboard component with True/False question type support
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -86,7 +87,7 @@ const Dashboard: React.FC = () => {
   // Start Quiz setup modal state
   const [showSetup, setShowSetup] = useState(false);
   const [setupDocId, setSetupDocId] = useState<string | null>(null);
-  const [questionType, setQuestionType] = useState<'mcq' | 'essay' | 'structured_essay' | 'mixed'>('mcq');
+  const [questionType, setQuestionType] = useState<'mcq' | 'essay' | 'structured_essay' | 'true_false' | 'mixed'>('mcq');
   const [numQuestions, setNumQuestions] = useState<number>(10);
   const [coverAllTopics, setCoverAllTopics] = useState<boolean>(false);
   const [startingQuiz, setStartingQuiz] = useState(false);
@@ -960,6 +961,7 @@ const Dashboard: React.FC = () => {
                   <label className="form-label">Question Type</label>
                   <select value={questionType} onChange={(e) => setQuestionType(e.target.value as any)} className="form-select">
                     <option value="mcq">MCQ</option>
+                    <option value="true_false">True/False (5 statements)</option>
                     <option value="essay">Essay</option>
                     <option value="structured_essay">Structured Essay</option>
                     <option value="mixed">Mixed (combination of all)</option>

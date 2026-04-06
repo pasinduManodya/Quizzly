@@ -374,6 +374,25 @@ CRITICAL - ANSWER DISTRIBUTION REQUIREMENT:
 - For ${numQuestions} questions, try to have roughly ${Math.floor(numQuestions/4)} questions for each option
 - DO NOT favor options B or C - ensure A and D are used equally
 - Example distribution for 8 questions: 2 with A correct, 2 with B correct, 2 with C correct, 2 with D correct`;
+    } else if (type === 'true_false') {
+      typeInstructions = `Generate only True/False questions in the style of professional medical exams. Each question should have EXACTLY 5 statements that users must mark as True or False.`;
+      questionFormat = `CRITICAL FORMAT REQUIREMENTS for True/False questions:
+- Each question MUST have a main topic/title (e.g., "Regarding measuring of disease frequency," or "Regarding case control studies,")
+- Each question MUST have EXACTLY 5 statements labeled A, B, C, D, E
+- Each statement should be a clear, testable assertion about the topic
+- Statements should cover ALL important aspects and concepts related to the topic
+- Mix of true and false statements (aim for balanced distribution)
+- Each statement must be independently evaluable as true or false
+- Avoid ambiguous or trick statements
+- Cover comprehensive aspects: definitions, characteristics, advantages, limitations, applications, comparisons
+- Each statement needs a detailed explanation of why it is true or false
+
+QUALITY STANDARDS for True/False:
+- Statements should test deep understanding, not just memorization
+- Cover different dimensions: conceptual, practical, comparative, analytical
+- Ensure statements are clear and unambiguous
+- Each statement explanation should educate the student on the concept
+- Explanations should be comprehensive and cover the reasoning`;
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
       questionFormat = `Each question should require a short written answer (1-3 sentences)`;
@@ -415,7 +434,48 @@ QUALITY STANDARDS:
 - Ensure questions are at the specified difficulty level
 
 Format your response as JSON with this structure:
-{
+${type === 'true_false' ? `{
+  "questions": [
+    {
+      "type": "true_false",
+      "question": "Regarding [topic name],",
+      "statements": [
+        {
+          "label": "A",
+          "text": "Statement A text",
+          "correct": "True",
+          "explanation": "Detailed explanation why this is true/false"
+        },
+        {
+          "label": "B",
+          "text": "Statement B text",
+          "correct": "False",
+          "explanation": "Detailed explanation why this is true/false"
+        },
+        {
+          "label": "C",
+          "text": "Statement C text",
+          "correct": "True",
+          "explanation": "Detailed explanation why this is true/false"
+        },
+        {
+          "label": "D",
+          "text": "Statement D text",
+          "correct": "False",
+          "explanation": "Detailed explanation why this is true/false"
+        },
+        {
+          "label": "E",
+          "text": "Statement E text",
+          "correct": "True",
+          "explanation": "Detailed explanation why this is true/false"
+        }
+      ],
+      "correct": "A:True,B:False,C:True,D:False,E:True",
+      "explanation": "Overall summary of the topic and key points covered"
+    }
+  ]
+}` : `{
   "questions": [
     {
       "type": "${type === 'mixed' ? 'mcq' : type}",
@@ -425,7 +485,7 @@ Format your response as JSON with this structure:
       "explanation": "Comprehensive explanation of the correct answer"
     }
   ]
-}
+}`}
 
 Return only the JSON, no additional text.`;
   }
