@@ -923,6 +923,26 @@ async function generateQuestions(text, options = {}) {
         return questionObj;
       });
       
+      // Validate True/False questions have exactly 5 statements
+      if (options.type === 'true_false') {
+        const validQuestions = questions.filter(q => {
+          if (q.type === 'true_false') {
+            const hasValidStatements = q.statements && Array.isArray(q.statements) && q.statements.length === 5;
+            if (!hasValidStatements) {
+              console.warn(`⚠️ Filtering out True/False question with ${q.statements?.length || 0} statements (expected 5)`);
+            }
+            return hasValidStatements;
+          }
+          return true;
+        });
+        
+        if (validQuestions.length < questions.length) {
+          console.log(`✅ Filtered ${questions.length - validQuestions.length} invalid True/False questions`);
+        }
+        
+        questions = validQuestions;
+      }
+      
       // Limit to requested number of questions
       const count = options.numQuestions || 8;
       if (questions.length > count) {

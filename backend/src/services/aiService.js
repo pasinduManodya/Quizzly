@@ -375,10 +375,20 @@ CRITICAL - ANSWER DISTRIBUTION REQUIREMENT:
 - DO NOT favor options B or C - ensure A and D are used equally
 - Example distribution for 8 questions: 2 with A correct, 2 with B correct, 2 with C correct, 2 with D correct`;
     } else if (type === 'true_false') {
-      typeInstructions = `Generate only True/False questions in the style of professional medical exams. Each question should have EXACTLY 5 statements that users must mark as True or False.`;
-      questionFormat = `CRITICAL FORMAT REQUIREMENTS for True/False questions:
+      typeInstructions = `Generate only True/False questions in the style of professional medical exams. 
+
+⚠️ CRITICAL REQUIREMENT: Each question MUST have EXACTLY 5 statements - NO MORE, NO LESS.
+- You MUST generate exactly 5 statements labeled A, B, C, D, E
+- Do NOT generate 4 statements
+- Do NOT generate 6 statements
+- ALWAYS generate exactly 5 statements for EVERY question`;
+      
+      questionFormat = `MANDATORY FORMAT REQUIREMENTS for True/False questions:
+⚠️ EXACTLY 5 STATEMENTS REQUIRED - THIS IS NON-NEGOTIABLE ⚠️
+
 - Each question MUST have a main topic/title (e.g., "Regarding measuring of disease frequency," or "Regarding case control studies,")
-- Each question MUST have EXACTLY 5 statements labeled A, B, C, D, E
+- Each question MUST have EXACTLY 5 statements labeled A, B, C, D, E (NOT 4, NOT 6 - EXACTLY 5)
+- All 5 statements (A, B, C, D, E) are MANDATORY for every single question
 - Each statement should be a clear, testable assertion about the topic
 - Statements should cover ALL important aspects and concepts related to the topic
 - Mix of true and false statements (aim for balanced distribution)
@@ -392,7 +402,9 @@ QUALITY STANDARDS for True/False:
 - Cover different dimensions: conceptual, practical, comparative, analytical
 - Ensure statements are clear and unambiguous
 - Each statement explanation should educate the student on the concept
-- Explanations should be comprehensive and cover the reasoning`;
+- Explanations should be comprehensive and cover the reasoning
+
+⚠️ REMINDER: COUNT YOUR STATEMENTS - MUST BE EXACTLY 5 (A, B, C, D, E) ⚠️`;
     } else if (type === 'essay') {
       typeInstructions = `Generate only short/essay style questions (1-3 sentence answers). Do NOT include any multiple choice questions.`;
       questionFormat = `Each question should require a short written answer (1-3 sentences)`;
