@@ -60,7 +60,14 @@ function App() {
                 </AdminProtectedRoute>
               } 
             />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route 
+              path="/admin-dashboard" 
+              element={
+                <AdminProtectedRoute>
+                  <AdminDashboard />
+                </AdminProtectedRoute>
+              } 
+            />
             <Route path="/" element={<Landing />} />
             <Route 
               path="/dashboard" 

@@ -74,9 +74,8 @@ const Login: React.FC = () => {
     try {
       await login(email, password);
       notify('ok', 'Admin access granted!', 'Loading admin dashboard...');
-      setTimeout(() => {
-        navigate('/admin-dashboard');
-      }, 800);
+      // Navigate immediately with replace to prevent redirect loop
+      navigate('/admin-dashboard', { replace: true });
     } catch (error: any) {
       notify('err', 'Admin login failed', error.message || 'Invalid admin credentials');
     }

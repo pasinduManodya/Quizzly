@@ -13,37 +13,13 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    // Check if user is authenticated and is admin
-    const checkAdminAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-
-      try {
-        // Set the token for axios requests
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Check if user is admin
-        const response = await axios.get('/api/auth/me');
-        const user = response.data.data?.user || response.data.user;
-        
-        if (user.role !== 'admin') {
-          localStorage.removeItem('token');
-          navigate('/login');
-          return;
-        }
-
-        setLoading(false);
-      } catch (error) {
-        localStorage.removeItem('token');
-        navigate('/login');
-      }
-    };
-
-    checkAdminAuth();
-  }, [navigate]);
+    // AdminProtectedRoute already handles auth check, just set axios token
+    const token = localStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    setLoading(false);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
